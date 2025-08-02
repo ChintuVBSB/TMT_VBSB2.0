@@ -1,0 +1,51 @@
+ @import "tailwindcss";
+/* App.css or index.css */
+ 
+ 
+@layer utilities {
+  @keyframes shine {
+    0% {
+      background-position: 100%;
+    }
+    100% {
+      background-position: -100%;
+    }
+  }
+
+  .animate-shine {
+    animation: shine 19s linear infinite;
+  }
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+}
+.gloria-font {
+  font-family: 'Gloria Hallelujah', cursive;
+}
+
+ 
+ 
+ /* Custom Scrollbar Style */
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* Tailwind's slate-300 */
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* slate-400 */
+}
+
+
+
+ 
