@@ -83,21 +83,34 @@ export const teamLogin = async (req, res) => {
 export const login = async (req, res) => {
   const { email, password } = req.body;
 
-  const user = await User.findOne({ email });
-  if (!user) return res.status(404).json({ msg: "User not found" });
+  try {
+    // ✅ Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
+    // ✅ Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
-  const otp = Math.floor(100000 + Math.random() * 900000);
-  user.otp = otp;
-  user.otp_expiry = Date.now() + 2 * 60 * 1000;
-  await user.save();
+    // ✅ Generate JWT token
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
-  await sendOTPEmail(user.email, otp); // 📧
-
-  res.json({ msg: "OTP sent on mail", userId: user._id });
+    // ✅ Send response
+    res.json({
+      token,
+      user: { name: user.name, role: user.role, email: user.email },
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
 };
+
 
  
 
