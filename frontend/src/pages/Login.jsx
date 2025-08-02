@@ -14,21 +14,31 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await axios.post("/auth/login", { email, password });
-      const userId = res.data.userId;
-      toast.success("OTP sent to your registered email!");
-      navigate("/verify-otp", { state: { userId } });
-    } catch (err) {
-      console.error("Login error", err);
-      toast.error("Invalid login");
-    } finally {
-      setLoading(false);
-    }
-  };
+ const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  try {
+    const res = await axios.post("/auth/login", { email, password });
+
+    // ✅ Get token + user directly
+    const { token, user } = res.data;
+
+    // ✅ Save token to localStorage (or context)
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+
+    toast.success("Login successful!");
+
+    // ✅ Redirect to dashboard/homepage (NO OTP step)
+    navigate("/");
+  } catch (err) {
+    console.error("Login error", err);
+    toast.error(err.response?.data?.msg || "Invalid login");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 
 

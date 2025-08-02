@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: ./backend
+    container_name: tmt-backend
+    restart: always
+    ports:
+    - "0.0.0.0:8000:8000" 
+    environment:
+      - MONGO_URI=mongodb+srv://ithelpdesk:gJwKPgISrv9LO1Kn@cluster0.z57nyx3.mongodb.net/task-flow
+      - JWT_SECRET=vbsb_tmt_secret_key
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    container_name: tmt-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
