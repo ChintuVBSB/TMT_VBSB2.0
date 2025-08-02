@@ -1,5 +1,5 @@
 import express from "express";
-import { acceptTask, completeTask, createTask,   addSubtaskToTask, deleteTask, getAllTasks, getMyTasks, getSingleTask, reassignTask, rejectTask,   updateTask, completeSubtask, addRemark, getRemark, requestRetry, acceptRetryRequest, getRecurringTasks, updateTaskStatus, sendTaskReminder, reassignTaskByStaff, getAllTaskLogs } from "../controllers/task.controller.js";
+import { acceptTask, completeTask, createTask,   addSubtaskToTask, deleteTask, getAllTasks, getMyTasks, getSingleTask, reassignTask, rejectTask,   updateTask, completeSubtask, addRemark, getRemark, requestRetry, acceptRetryRequest, getRecurringTasks, updateTaskStatus, sendTaskReminder, reassignTaskByStaff, getAllTaskLogs, getCommentsForTask, addCommentToTask } from "../controllers/task.controller.js";
 import { verifyToken } from "../middlewares/authMiddleware.js";
 import multer from "multer";
 import path from "path";
@@ -30,6 +30,8 @@ router.get("/tasks/my", verifyToken, getMyTasks);
 console.log("✅ Reminder route loaded");
 
 router.get("/tasks/logs", verifyToken, getAllTaskLogs);
+
+
 //Quick reminderr
 router.post("/tasks/reminder", verifyToken, sendTaskReminder);
 router.patch("/tasks/accept/:id", verifyToken, acceptTask);
@@ -39,6 +41,13 @@ router.patch("/tasks/:id", verifyToken, updateTask);
 router.delete("/tasks/:id", verifyToken, deleteTask);
 router.patch("/tasks/reject/:taskId", verifyToken, rejectTask);
 router.patch("/reassign/:taskId", verifyToken, reassignTask);
+
+//comment on tasks
+// GET all comments for a specific task
+router.get('/tasks/:taskId/comments', verifyToken, getCommentsForTask);
+
+// POST a new comment to a specific task
+router.post('/tasks/:taskId/comments', verifyToken, addCommentToTask);
 
 router.patch("/reassign/staff/:taskId", verifyToken, reassignTaskByStaff);
 

@@ -15,6 +15,10 @@ import { Tooltip } from "react-tooltip";
 import { DiamondPlus, BadgeAlert, CheckCircle } from "lucide-react";
 import Select from "react-select"; // If you use react-select, otherwise use a native select
 import RemarkModal from "./RemarkModal";
+import PageSkelton from "../../components/skeletons/PageSkeleton";
+import { MessageSquare } from 'lucide-react'; // Import a nice icon
+import TaskCommentsModal from '../tasks/TaskCommentsModal'
+
 
 const AllTasks = () => {
   const navigate = useNavigate();
@@ -43,6 +47,8 @@ const AllTasks = () => {
   const [remark, setRemark] = useState("");
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [selectedRemark, setSelectedRemark] = useState("");
+   const [loading, setLoading] = useState(true);
+   const [showCommentsModal, setShowCommentsModal] = useState(false);
 
   const debouncedSearch = useCallback(
     debounce((value) => {
@@ -220,8 +226,34 @@ const AllTasks = () => {
     c.name.toLowerCase().includes(clientSearch.toLowerCase())
   );
 
+    useEffect(() => {
+      const fetchAll = async () => {
+        setLoading(true);
+        try {
+          await fetchTasks();
+          await fetchUsers();;
+        } catch (err) {
+          console.error("Error loading dashboard:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+  
+      fetchAll();
+    },[]);
+  
+    // ✅ Show skeleton while loading
+    if (loading) return <PageSkelton count={6} />;
   // Move date filter buttons to top right, above the filters row
   return (
+    <>
+    {showCommentsModal && (
+  <TaskCommentsModal
+    isOpen={showCommentsModal}
+    onClose={() => setShowCommentsModal(false)}
+    task={selectedTask}
+  />
+)}
     <div className="bg-white min-h-screen">
       <AdminNavbar />
       <div className="px-6 pt-28 max-w-7xl mx-auto">
@@ -431,7 +463,7 @@ const AllTasks = () => {
           <table className="w-full text-sm">
             <thead className="text-gray-600 bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left">S.No</th>
+                <th className="px-4 py-3 text-left">T.Id</th>
                 <th className="px-6 py-4 text-left">Task</th>
                 <th className="px-6 py-4 text-left">Assignee</th>
                 <th className="px-6 py-4 text-left">Client</th>
@@ -559,6 +591,8 @@ const AllTasks = () => {
                     )}
                   </td>
 
+                  
+
                   {/* Action Buttons */}
                   <td className="px-6 py-4 space-x-2 whitespace-nowrap">
                     <button
@@ -575,6 +609,17 @@ const AllTasks = () => {
                       🔔 Send Reminder
                     </button>
 
+                     <button
+  data-tooltip-id="tooltip"
+  data-tooltip-content="View Comments"
+  onClick={() => {
+    setSelectedTask(task); // Set the selected task
+    setShowCommentsModal(true); // Open the new comments modal
+  }}
+  className="text-gray-700 hover:text-black"
+>
+  <MessageSquare size={18} />
+</button>
                     <button
                       data-tooltip-id="tooltip"
                       data-tooltip-content="Edit Task"
@@ -694,6 +739,7 @@ const AllTasks = () => {
         <Tooltip id="tooltip" />
       </div>
     </div>
+  </>
   );
 };
 

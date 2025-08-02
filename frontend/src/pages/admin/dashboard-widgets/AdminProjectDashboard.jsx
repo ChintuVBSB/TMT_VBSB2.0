@@ -13,6 +13,7 @@ import {
 import { getToken } from "../../../utils/token";
 import AddMilestoneModal from "../../../components/AddMilestoneModal";
 import ChatBox from "../../../components/ChatBox";
+import PageSkelton from "../../../components/skeletons/PageSkeleton";
 
 const ProjectDashboard = () => {
   const [projects, setProjects] = useState([]);
@@ -20,6 +21,7 @@ const ProjectDashboard = () => {
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [chatProject, setChatProject] = useState(null); // 🟦 For Chat
+   const [loading, setLoading] = useState(true);
 
   const fetchProjects = async () => {
     try {
@@ -42,6 +44,24 @@ const ProjectDashboard = () => {
     return Math.round((completedCount / milestones.length) * 100);
   };
 
+   useEffect(() => {
+          const fetchAll = async () => {
+            setLoading(true);
+            try {
+              await fetchTasks();
+              await fetchUsers();;
+            } catch (err) {
+              console.error("Error loading dashboard:", err);
+            } finally {
+              setLoading(false);
+            }
+          };
+      
+          fetchAll();
+        },[]);
+      
+        // ✅ Show skeleton while loading
+        if (loading) return <PageSkelton count={8} />;
   const Stepper = ({ milestones }) => {
     const isCompleted = milestones.every((m) => m.completed);
     const lastMilestone = milestones[milestones.length - 1];

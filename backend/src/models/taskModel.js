@@ -53,6 +53,12 @@ const taskSchema = new mongoose.Schema(
       ref: "Client"
     },
 
+    comments: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Comment'
+    }],
+
+
     project_id: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
 
     attachments: [

@@ -5,6 +5,7 @@ import {
   getProfile,
   login,
   managerLogin,
+  resendOTP,
   teamLogin,
   verifyOTP,
 } from "../controllers/authController.js";
@@ -16,6 +17,7 @@ import { updateProfile } from '../controllers/userController.js';
 const router = express.Router()
 
 router.post("/login", login); 
+router.post("/resend-otp", resendOTP);
 router.post('/verify-otp', verifyOTP)
 router.post("/admin/login", adminLogin);
 router.post("/manager/login", managerLogin);

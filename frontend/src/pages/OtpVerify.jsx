@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "../services/api";
 import { setToken } from "../utils/token";
@@ -10,6 +10,8 @@ function VerifyOTP() {
   const navigate = useNavigate();
   const location = useLocation();
   const userId = location.state?.userId;
+  const [resendTimer, setResendTimer] = useState(30);
+  const [loading, setLoading] = useState(false);
 
   const handleVerify = async (e) => {
     e.preventDefault();
@@ -47,6 +49,47 @@ function VerifyOTP() {
     }
   };
 
+  useEffect(() => {
+    let interval;
+    if (resendTimer > 0) {
+      interval = setInterval(() => setResendTimer((t) => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  const handleResend = async () => {
+    setLoading(true);
+    try {
+      await axios.post("/auth/resend-otp", { userId: location.state.userId });
+      toast.success("OTP resent to your email!");
+      setResendTimer(30); // restart timer
+    } catch (err) {
+      toast.error("Failed to resend OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    try {
+      const decoded = JSON.parse(atob(token.split(".")[1]));
+      const role = decoded.role;
+
+      if (role === "admin" || role === "manager") {
+        navigate("/");
+      } else {
+        navigate("/staff/home");
+      }
+    } catch (err) {
+      console.error("Token decode error:", err);
+      // Agar token corrupted hai to hata de
+      localStorage.removeItem("token");
+    }
+  }
+}, []);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <form
@@ -70,22 +113,23 @@ function VerifyOTP() {
           required
         />
 
-        <button
-          type="submit"
-          className="w-full bg-purple-800 text-white font-semibold py-2 rounded-full hover:bg-purple-600 transition"
-        >
-          Verify OTP
-        </button>
+        <div className="flex flex-col gap-3 justify-between items-center">
+          <button
+            type="submit"
+            className="w-full bg-purple-800 text-white font-semibold py-2 rounded-full hover:bg-purple-600 transition"
+          >
+            Verify OTP
+          </button>
 
-        {/* Resend OTP Button */}
-        <button
-          type="button"
-          onClick={handleResendOTP}
-          disabled={isResending}
-          className="w-full text-purple-700 hover:text-purple-900 mt-2 text-sm underline"
-        >
-          {/* {isResending ? "Sending OTP..." : "Resend OTP"} */}
-        </button>
+          {/* Resend OTP Button */}
+          <button
+            onClick={handleResend}
+            disabled={resendTimer > 0 || loading}
+            className="text-blue-600 hover:underline text-sm disabled:text-gray-400"
+          >
+            {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP"}
+          </button>
+        </div>
       </form>
     </div>
   );

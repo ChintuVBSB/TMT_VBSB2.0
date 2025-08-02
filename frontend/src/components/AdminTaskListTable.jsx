@@ -3,11 +3,31 @@ import axios from "../services/api";
 import { getToken } from "../utils/token";
 import AdminNavbar from "./navbars/AdminNavbar";
 import { Pencil, Trash2 } from "lucide-react";
+import PageSkelton from "./skeletons/PageSkeleton";
+import downloadCSV from '../utils/downloadCSV'
 
 function AdminTaskListTable() {
   const [tasks, setTasks] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const tasksPerPage = 30;
+  const [loading, setLoading] = useState(true);
+  
+  const formatTasksForCSV = (data) =>
+  data.map((task) => ({
+    "Serial No": task.serial_number || "---",
+    Title: task.title || "---",
+    Description: task.description || "---",
+    Status: task.status || "---",
+    Priority: task.priority || "---",
+    "Due Date": task.due_date ? new Date(task.due_date).toLocaleDateString() : "---",
+    "Assigned To": task.assigned_to?.name || "---",
+    "Assigned By": task.assigned_by?.name || "---",
+    Client: task.client?.name || "---",
+    Mode: task.recurring ? "Recurring" : "One Time",
+    Frequency: task.recurringFrequency || "---",
+    CreatedAt: task.createdAt ? new Date(task.createdAt).toLocaleString() : "---",
+    UpdatedAt: task.updatedAt ? new Date(task.updatedAt).toLocaleString() : "---"
+  }));
 
   const fetchTasks = async () => {
     try {
@@ -51,12 +71,43 @@ function AdminTaskListTable() {
     }
   };
 
+   useEffect(() => {
+        const fetchAll = async () => {
+          setLoading(true);
+          try {
+            await fetchTasks();
+          } catch (err) {
+            console.error("Error loading dashboard:", err);
+          } finally {
+            setLoading(false);
+          }
+        };
+    
+        fetchAll();
+      },[]);
+    
+      // ✅ Show skeleton while loading
+      if (loading) return <PageSkelton count={6} />;
   return (
     <>
       <AdminNavbar />
       <div className="p-4 mt-18 max-w-10xl mx-auto">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">📋 Task List</h2>
+<div className="flex justify-end gap-4 mb-4">
+  <button
+    onClick={() =>   downloadCSV(formatTasksForCSV(currentTasks), `tasks-page-${currentPage}.csv`)}
+    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
+  >
+    Download This Page
+  </button>
 
+  <button
+    onClick={() => downloadCSV(formatTasksForCSV(tasks), "all-tasks.csv")}
+    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
+  >
+    Download All Tasks
+  </button>
+</div>
         <div className="rounded-xl shadow-sm border overflow-hidden">
           <table className="w-full table-fixed bg-white text-sm">
             <thead className="bg-gray-100 text-gray-700">

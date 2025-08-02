@@ -31,6 +31,9 @@ import { useNavigate } from "react-router-dom";
 import socket from "../../socket";
 import MISExport from "../admin/dashboard-widgets/MISExports";
 import StaffTimeLogFilter from "./StaffTimeLogFilter";
+import PageSkelton from "../../components/skeletons/PageSkeleton"
+
+
 function StaffDashboard() {
   const navigate = useNavigate();
 
@@ -51,6 +54,11 @@ function StaffDashboard() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [reassignModalTaskId, setReassignModalTaskId] = useState(null);
+    const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState([]);
+
+
+
 
   const fetchMyTasks = async () => {
     try {
@@ -72,6 +80,9 @@ function StaffDashboard() {
       console.error("Error fetching tasks", err);
     }
   };
+
+  
+     
 
   useEffect(() => {
     // Socket listener for reminder
@@ -244,6 +255,25 @@ function StaffDashboard() {
     return true;
   });
 
+    useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      try {
+        await fetchMyTasks();
+        await fetchUser();
+      } catch (err) {
+        console.error("Error loading dashboard:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAll();
+  }, [activeTab, filterMode]);
+
+  // ✅ Show skeleton while loading
+  if (loading) return <PageSkelton count={6} />;
+
   return (
     <>
       {showReassignModal && (
@@ -389,7 +419,7 @@ function StaffDashboard() {
               <thead className="bg-gray-100 text-left">
                 <tr>
                   {[
-                    "Serial No",
+                    "Task ID",
                     "Title",
                     "Due Date",
                     "Description",

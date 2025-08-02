@@ -5,8 +5,7 @@ import sendTaskAssignedEmail from "../../utils/sendMail.js"; // we'll define thi
 import moment from "moment";
 import { getOnlineUsers, getIO } from "../../utils/socketStore.js";
 import { generateTaskSerialNumber } from "../helpers/generateSerial.js";
-
-
+import Comment from "../models/comment.js";
 
 export const createTask = async (req, res) => {
   try {
@@ -21,7 +20,7 @@ export const createTask = async (req, res) => {
       tags,
       client,
       recurring,
-      recurringFrequency,
+      recurringFrequency
     } = req.body;
 
     const foundClient = await Client.findById(client);
@@ -32,8 +31,7 @@ export const createTask = async (req, res) => {
       return res.status(400).json({ message: "Due date is required" });
     }
 
-    const isRecurring =
-      recurring === "true" || recurring === true;
+    const isRecurring = recurring === "true" || recurring === true;
 
     const frequency =
       isRecurring && recurringFrequency
@@ -49,7 +47,7 @@ export const createTask = async (req, res) => {
       attachments.push({
         filename: req.file.originalname,
         fileUrl: `${process.env.BASE_URL}/uploads/${req.file.filename}`,
-        uploadedAt: new Date(),
+        uploadedAt: new Date()
       });
     }
 
@@ -57,7 +55,7 @@ export const createTask = async (req, res) => {
       attachments = req.files.map((file) => ({
         filename: file.originalname,
         fileUrl: `${process.env.BASE_URL}/uploads/${file.filename}`,
-        uploadedAt: new Date(),
+        uploadedAt: new Date()
       }));
     }
 
@@ -83,9 +81,9 @@ export const createTask = async (req, res) => {
           by: req.user.id,
           to: assigned_to,
           message: "Task assigned",
-          date: new Date(),
-        },
-      ],
+          date: new Date()
+        }
+      ]
     });
 
     const assignee = await User.findById(assigned_to);
@@ -93,21 +91,17 @@ export const createTask = async (req, res) => {
       await sendTaskAssignedEmail(assignee.email, title, due_date);
     }
 
-    return res
-      .status(201)
-      .json({ message: "Task created & email sent", task });
+    return res.status(201).json({ message: "Task created & email sent", task });
   } catch (err) {
     console.error("Create Task Error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };
 
-
-
-
 export const getAllTasks = async (req, res) => {
   try {
-    const { status, priority, assigned_to, assigned_by, client, search, from } = req.query;
+    const { status, priority, assigned_to, assigned_by, client, search, from } =
+      req.query;
     const query = {};
 
     if (status) query.status = status;
@@ -121,19 +115,19 @@ export const getAllTasks = async (req, res) => {
       query.createdAt = { $gte: new Date(from) };
     }
 
-   if (search) {
-  const searchRegex = new RegExp(search, "i");
-  query.$or = [
-    { title: searchRegex },
-    { tags: searchRegex },
-    { description: searchRegex },
-    { serial_number: searchRegex }  // ✅ Now even serial no. is searchable!
-  ];
-}
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+      query.$or = [
+        { title: searchRegex },
+        { tags: searchRegex },
+        { description: searchRegex },
+        { serial_number: searchRegex } // ✅ Now even serial no. is searchable!
+      ];
+    }
 
     const tasks = await Task.find(query)
       .populate("assigned_to", "name")
-      .populate("assigned_by", "name email role") 
+      .populate("assigned_by", "name email role")
       .populate("reassign_history.reassigned_by", "name email")
       .populate("client", "name")
       .sort({ createdAt: -1 });
@@ -145,13 +139,14 @@ export const getAllTasks = async (req, res) => {
   }
 };
 
-
 export const createSubtask = async (req, res) => {
   try {
     const { title, description, parent_task } = req.body;
 
     if (!title || !parent_task) {
-      return res.status(400).json({ message: "Title and parent_task are required" });
+      return res
+        .status(400)
+        .json({ message: "Title and parent_task are required" });
     }
 
     const parent = await Task.findById(parent_task);
@@ -168,7 +163,7 @@ export const createSubtask = async (req, res) => {
       assigned_by: parent.assigned_by,
       status: "Pending",
       client: parent.client,
-      parent_task,
+      parent_task
     });
 
     res.status(201).json(subtask);
@@ -178,7 +173,7 @@ export const createSubtask = async (req, res) => {
   }
 };
 
- export const addSubtaskToTask = async (req, res) => {
+export const addSubtaskToTask = async (req, res) => {
   try {
     const { title, description } = req.body;
     const { id } = req.params; // id = main task id
@@ -198,14 +193,11 @@ export const createSubtask = async (req, res) => {
 
     await task.save();
     res.status(200).json({ message: "Subtask added successfully", task });
-
   } catch (err) {
     console.error("Add subtask error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
-
-
 
 export const completeSubtask = async (req, res) => {
   const { taskId, index } = req.params;
@@ -257,22 +249,19 @@ export const getMyTasks = async (req, res) => {
     //   (task) =>
     //     new Date(task.due_date) <= next24hrs && task.status !== "Completed"
     // );
-
   } catch (err) {
     console.error("Error in getMyTasks:", err);
     res.status(500).json({ message: "Failed to fetch tasks" });
   }
 };
 
-
- 
 //   try {
 //     const userId = req.user._id || req.user.id; // 🛡️ middleware ne lagaya hai
 //      const tasks = await Task.find({ assigned_to: userId })
 //        .populate("client", "name")
 //       .populate("assigned_to", "name email")
 //       .populate("assigned_by", "name email"); // 👈 Yeh line add kari hai
-      
+
 //     res.status(200).json({ tasks });
 
 //     const now = new Date();
@@ -316,8 +305,6 @@ export const acceptTask = async (req, res) => {
     res.status(500).json({ message: "Failed to accept task" });
   }
 };
-
-
 
 export const completeTask = async (req, res) => {
   try {
@@ -376,7 +363,7 @@ export const deleteTask = async (req, res) => {
       action: "Deleted",
       by: req.user.id,
       date: new Date(),
-      message: `${req.user.role} deleted the task.`,
+      message: `${req.user.role} deleted the task.`
     });
 
     // Optional: You can save the log before deletion for record-keeping elsewhere (like audit collection)
@@ -391,7 +378,6 @@ export const deleteTask = async (req, res) => {
     res.status(500).json({ message: "Failed to delete task" });
   }
 };
-
 
 // controllers/taskController.js
 
@@ -415,7 +401,7 @@ export const rejectTask = async (req, res) => {
       action: "Rejected",
       by: req.user.id,
       date: new Date(),
-      message: `${req.user.role} rejected the task. Reason: ${task.reason}`,
+      message: `${req.user.role} rejected the task. Reason: ${task.reason}`
     });
 
     await task.save();
@@ -426,7 +412,6 @@ export const rejectTask = async (req, res) => {
     res.status(500).json({ message: "Failed to reject task" });
   }
 };
-
 
 // PATCH /tasks/reassign/:taskId
 export const reassignTask = async (req, res) => {
@@ -465,7 +450,7 @@ export const reassignTask = async (req, res) => {
       reassigned_by: userId,
       reassigned_to: newAssignee,
       remark: remark || "",
-      date: new Date(),
+      date: new Date()
     });
 
     // 7. Push into logs[]
@@ -474,7 +459,7 @@ export const reassignTask = async (req, res) => {
       action: "Reassigned",
       by: userId,
       date: new Date(),
-      message: `${req.user.role} reassigned task to ${user.name}${remark ? ` with remark: "${remark}"` : ""}`,
+      message: `${req.user.role} reassigned task to ${user.name}${remark ? ` with remark: "${remark}"` : ""}`
     });
 
     // 8. Save task
@@ -490,26 +475,22 @@ export const reassignTask = async (req, res) => {
   }
 };
 
-
-
-
-
 export const addRemark = async (req, res) => {
   try {
     const { remark, delayReason } = req.body;
     const taskId = req.params.id;
 
     if (!remark || !remark.trim()) {
-      return res.status(400).json({ error: 'Remark is required.' });
+      return res.status(400).json({ error: "Remark is required." });
     }
 
     if (!delayReason || delayReason.trim() === "") {
-      return res.status(400).json({ error: 'Delay reason is required.' });
+      return res.status(400).json({ error: "Delay reason is required." });
     }
 
     const task = await Task.findById(taskId);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found.' });
+      return res.status(404).json({ error: "Task not found." });
     }
 
     task.remark = remark;
@@ -517,23 +498,23 @@ export const addRemark = async (req, res) => {
     task.status = "Remarked";
     await task.save();
 
-    res.json({ message: 'Remark with reason added successfully.' });
+    res.json({ message: "Remark with reason added successfully." });
   } catch (err) {
     console.error("💥 addRemark Controller Error:", err);
-    res.status(500).json({ error: 'Server error.' });
+    res.status(500).json({ error: "Server error." });
   }
 };
-
-
 
 export const getRemark = async (req, res) => {
   try {
     const taskId = req.params.id;
     console.log("taskId 👉", taskId);
 
-    const task = await Task.findById(taskId).select("title remark status assigned_to due_date");
+    const task = await Task.findById(taskId).select(
+      "title remark status assigned_to due_date"
+    );
     if (!task) {
-      return res.status(404).json({ error: 'Task not found.' });
+      return res.status(404).json({ error: "Task not found." });
     }
 
     res.json({
@@ -545,10 +526,9 @@ export const getRemark = async (req, res) => {
       dueDate: task.due_date
     });
   } catch (err) {
-    res.status(500).json({ error: 'Server error.' });
+    res.status(500).json({ error: "Server error." });
   }
 };
-
 
 export const requestRetry = async (req, res) => {
   try {
@@ -556,23 +536,31 @@ export const requestRetry = async (req, res) => {
     const userId = req.user?._id?.toString() || req.user?.id?.toString();
 
     if (!userId) {
-      return res.status(401).json({ message: "Unauthorized. User ID missing." });
+      return res
+        .status(401)
+        .json({ message: "Unauthorized. User ID missing." });
     }
 
     const task = await Task.findById(taskId);
     if (!task) return res.status(404).json({ message: "Task not found" });
 
     if (!task.assigned_to) {
-      return res.status(400).json({ message: "Task is not assigned to anyone yet" });
+      return res
+        .status(400)
+        .json({ message: "Task is not assigned to anyone yet" });
     }
 
     const assignedId = task.assigned_to.toString();
     if (assignedId !== userId) {
-      return res.status(403).json({ message: "Not authorized to retry this task" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to retry this task" });
     }
 
     if (task.status !== "Pending") {
-      return res.status(400).json({ message: "Only pending tasks can be retried" });
+      return res
+        .status(400)
+        .json({ message: "Only pending tasks can be retried" });
     }
 
     if (task.retryRequested) {
@@ -597,16 +585,14 @@ export const requestRetry = async (req, res) => {
 
     await task.save();
 
-    return res.status(200).json({ message: "Retry request with remark submitted successfully" });
+    return res
+      .status(200)
+      .json({ message: "Retry request with remark submitted successfully" });
   } catch (err) {
     console.error("Retry request error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
-
-
-
 
 export const acceptRetryRequest = async (req, res) => {
   try {
@@ -617,7 +603,9 @@ export const acceptRetryRequest = async (req, res) => {
     if (!task) return res.status(404).json({ message: "Task not found" });
 
     if (!task.retryRequested) {
-      return res.status(400).json({ message: "No retry requested for this task" });
+      return res
+        .status(400)
+        .json({ message: "No retry requested for this task" });
     }
 
     // Reactivate the task
@@ -633,7 +621,7 @@ export const acceptRetryRequest = async (req, res) => {
       action: "Retry Accepted",
       by: req.user.id,
       date: new Date(),
-      message: `Retry accepted and task reassigned to user ${userId}`,
+      message: `Retry accepted and task reassigned to user ${userId}`
     });
 
     await task.save();
@@ -643,14 +631,14 @@ export const acceptRetryRequest = async (req, res) => {
       await sendTaskAssignedEmail(user.email, task.title, task.due_date);
     }
 
-    res.status(200).json({ message: "Retry accepted and task reassigned", task });
+    res
+      .status(200)
+      .json({ message: "Retry accepted and task reassigned", task });
   } catch (err) {
     console.error("Accept Retry Request Error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
- 
 
 // GET /tasks/mine?type=recurring
 export const getRecurringTasks = async (req, res) => {
@@ -659,7 +647,7 @@ export const getRecurringTasks = async (req, res) => {
 
     const tasks = await Task.find({
       assigned_to: userId,
-      recurring: true,
+      recurring: true
     })
       .populate("client", "name")
       .populate("assigned_by", "name")
@@ -672,8 +660,6 @@ export const getRecurringTasks = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch recurring tasks" });
   }
 };
-
-
 
 export const updateTaskStatus = async (req, res) => {
   const { id } = req.params;
@@ -705,12 +691,14 @@ export const sendTaskReminder = async (req, res) => {
     console.log("🧾 Online users map:", Array.from(onlineUsers.entries()));
 
     if (!socketId) {
-      return res.status(404).json({ success: false, message: "User not online" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not online" });
     }
 
     getIO().to(socketId).emit("task:reminder", {
       message: "🔔 You have a task due today!",
-      taskId,
+      taskId
     });
 
     return res.json({ success: true, message: "Reminder sent" });
@@ -720,26 +708,33 @@ export const sendTaskReminder = async (req, res) => {
   }
 };
 
-
 export const reassignTaskByStaff = async (req, res) => {
   try {
     const { taskId } = req.params;
     const { newAssignee, remark } = req.body;
 
     if (!newAssignee || !remark) {
-      return res.status(400).json({ message: "New assignee and remark are required" });
+      return res
+        .status(400)
+        .json({ message: "New assignee and remark are required" });
     }
 
     const task = await Task.findById(taskId);
     if (!task) return res.status(404).json({ message: "Task not found" });
 
     // ✅ Only allow staff to reassign their own task
-    if (req.user.role !== "staff" || task.assigned_to.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Unauthorized to reassign this task" });
+    if (
+      req.user.role !== "staff" ||
+      task.assigned_to.toString() !== req.user.id
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Unauthorized to reassign this task" });
     }
 
     const newUser = await User.findById(newAssignee);
-    if (!newUser) return res.status(404).json({ message: "Assignee user not found" });
+    if (!newUser)
+      return res.status(404).json({ message: "Assignee user not found" });
 
     // 🛠 Update task
     task.assigned_to = newAssignee;
@@ -758,7 +753,7 @@ export const reassignTaskByStaff = async (req, res) => {
       reassigned_by: req.user.id,
       reassigned_to: newAssignee,
       remark,
-      date: new Date(),
+      date: new Date()
     });
 
     // 📝 Log entry
@@ -767,7 +762,7 @@ export const reassignTaskByStaff = async (req, res) => {
       action: "Reassigned by Staff",
       by: req.user.id,
       date: new Date(),
-      message: `Task reassigned to ${newUser.name} (${newUser.role}) by ${req.user.role}`,
+      message: `Task reassigned to ${newUser.name} (${newUser.role}) by ${req.user.role}`
     });
 
     await task.save();
@@ -782,13 +777,11 @@ export const reassignTaskByStaff = async (req, res) => {
   }
 };
 
-
-
 export const getAllTaskLogs = async (req, res) => {
   try {
     const tasks = await Task.find({})
       .populate("logs.by", "name role") // populate user info
-      .populate("logs.to", "name role") 
+      .populate("logs.to", "name role")
       .sort({ updatedAt: -1 });
 
     const allLogs = [];
@@ -799,7 +792,7 @@ export const getAllTaskLogs = async (req, res) => {
           allLogs.push({
             ...log._doc,
             taskId: task._id,
-            taskTitle: task.title,
+            taskTitle: task.title
           });
         });
       }
@@ -814,3 +807,40 @@ export const getAllTaskLogs = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch task logs" });
   }
 };
+
+export const getCommentsForTask = (async (req, res) => {
+  const comments = await Comment.find({ task: req.params.taskId })
+    .populate("user", "name role") // Populate user's name and role
+    .sort({ createdAt: "asc" }); // Show oldest comments first
+
+  res.status(200).json(comments);
+});
+
+export const addCommentToTask = (async (req, res) => {
+  const { content } = req.body;
+
+  if (!content) {
+    res.status(400);
+    throw new Error("Comment content cannot be empty.");
+  }
+
+  // Create the new comment
+  const comment = new Comment({
+    content,
+    task: req.params.taskId,
+    user: req.user.id // Assuming your auth middleware adds the user to the request
+  });
+
+  const createdComment = await comment.save();
+
+  // Populate the user details before sending back the response
+  const populatedComment = await Comment.findById(createdComment._id).populate(
+    "user",
+    "name role"
+  );
+
+  // Here you will emit the WebSocket event! (See Step 3)
+
+  res.status(201).json(populatedComment);
+});
+ 

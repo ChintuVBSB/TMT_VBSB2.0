@@ -3,6 +3,7 @@ import User from '../models/user.js';
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { sendOTPEmail } from "../../utils/sendOtpMail.js";
+import { generateOTP } from '../helpers/otpgenerator.js';
  
 
 // 🔐 Admin Login
@@ -131,4 +132,26 @@ export const getProfile = async (req, res) => {
   }
 };
 
- //hello
+export const resendOTP =  async (req, res) => {
+  const { userId } = req.body;
+
+  
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // generate OTP logic
+    const otp = generateOTP(); // e.g. random 6-digit
+    user.otp = otp;
+    user.otpExpires = Date.now() + 5 * 60 * 1000;
+    await user.save();
+
+    // send OTP to email
+    await sendOTPEmail(user.email, otp);
+
+    res.json({ message: "OTP resent successfully!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to resend OTP" });
+  }
+}
