@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Calendar, Paperclip, ChevronDown } from "lucide-react";
+import { Paperclip, ChevronDown } from "lucide-react";
 import FileUploadModal from "./FileUploadModal";
 import { getToken } from "../../utils/token";
 import axios from "../../services/api";
 import toast from "react-hot-toast";
 import debounce from "lodash.debounce";
+import AdminNavbar from "../../components/navbars/AdminNavbar"; // Added for page layout
 
 const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
   const [title, setTitle] = useState("");
@@ -12,16 +13,16 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
   const [assignee, setAssignee] = useState("");
   const [client, setClient] = useState("");
   const [priority, setPriority] = useState("Medium");
-  const [tags, setTags] = useState([]);
-  const [tagInput, setTagInput] = useState("");
   const [serviceType, setServiceType] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [files, setFiles] = useState([]);
-  // const [scheduledDate, setScheduledDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
-  const [recurring, setrecurring] = useState(false);
+  const [recurring, setRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState("");
+  
+  // State for form validation errors
+  const [errors, setErrors] = useState({});
 
   const [searchUser, setSearchUser] = useState("");
   const [filteredUsers, setFilteredUsers] = useState(initialUsers);
@@ -55,33 +56,47 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
     return () => debounced.cancel();
   }, [searchClient, clients]);
 
-  const handleAddTag = (e) => {
-    if (e.key === "Enter" && tagInput.trim()) {
-      e.preventDefault();
-      setTags((prev) => [...prev, tagInput.trim()]);
-      setTagInput("");
-    }
-  };
-
-  const removeTag = (tagToRemove) =>
-    setTags(tags.filter((t) => t !== tagToRemove));
-
   const handleUploadComplete = (selectedFiles) => {
     setFiles(selectedFiles);
   };
+  
+  // --- NEW VALIDATION FUNCTION ---
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!title.trim()) newErrors.title = "Task title is required.";
+    if (!assignee) newErrors.assignee = "Please assign the task to a staff member.";
+    if (!client) newErrors.client = "Please select a client for this task.";
+    if (!serviceType) newErrors.serviceType = "Please select a service type.";
+    
+    if (!dueDate) {
+      newErrors.dueDate = "Due date is required.";
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of today
+      const selectedDueDate = new Date(dueDate);
+      if (selectedDueDate < today) {
+        newErrors.dueDate = "Due date cannot be in the past.";
+      }
+    }
+
+    if (recurring && !recurringFrequency) {
+      newErrors.recurringFrequency = "Please select a frequency for the recurring task.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
 
   const submitHandler = async (e) => {
     e.preventDefault();
     if (isSubmittingRef.current) return;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(dueDate);
-    selectedDate.setHours(0, 0, 0, 0);
-
-    if (!dueDate || selectedDate < today) {
-      toast.error("Due date cannot be in the past.");
-      return;
+    
+    // Call validation function before submitting
+    if (!validateForm()) {
+        toast.error("Please fix the errors before submitting.");
+        return;
     }
 
     setIsSubmitting(true);
@@ -95,18 +110,16 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
     formData.append("client", client);
     formData.append("serviceType", serviceType);
     formData.append("due_date", dueDate);
-    // formData.append("scheduled_date", scheduledDate);
     formData.append("recurring", recurring);
-    formData.append("recurringFrequency", recurringFrequency);
+    if(recurring) {
+        formData.append("recurringFrequency", recurringFrequency);
+    }
 
-
-    tags.forEach((tag) => formData.append("tags[]", tag));
     if (files.length > 0) {
-  files.forEach(file => {
-    formData.append("attachments", file);
-  });
-}
-
+      files.forEach(file => {
+        formData.append("attachments", file);
+      });
+    }
 
     try {
       await axios.post("/assign/tasks", formData, {
@@ -114,6 +127,7 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
       });
 
       toast.success("Task Assigned");
+      // Reset form on success
       setTitle("");
       setDescription("");
       setAssignee("");
@@ -121,13 +135,15 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
       setPriority("Medium");
       setServiceType("");
       setDueDate("");
-      setTags([]);
       setFiles([]);
       setSearchUser("");
       setSearchClient("");
+      setRecurring(false);
+      setRecurringFrequency("");
+      setErrors({}); // Clear errors on success
     } catch (err) {
       console.error("Failed to create task:", err);
-      toast.error("Task creation failed");
+      toast.error(err.response?.data?.message || "Task creation failed");
     } finally {
       setIsSubmitting(false);
       isSubmittingRef.current = false;
@@ -136,7 +152,8 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
 
   return (
     <>
-      <div className="min-h-screen mt-18 bg-white">
+      <AdminNavbar />
+      <div className="min-h-screen pt-18 bg-white">
         <div className="grid grid-cols-1 lg:grid-cols-2">
           {/* Left Side - Image and Intro */}
           <div className="bg-gray-50 flex flex-col justify-center items-center px-8 py-16">
@@ -159,20 +176,26 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
             <form
               onSubmit={submitHandler}
               className="bg-white border border-gray-200 rounded-lg shadow-md p-6"
+              noValidate
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
+                  {/* Task Title */}
                   <div>
-                    <label className="text-sm font-semibold">Task Title</label>
+                    <label className="text-sm font-semibold">Task Title <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      required
-                      className="w-full mt-1 px-4 py-2 border rounded-lg"
+                      onChange={(e) => {
+                          setTitle(e.target.value);
+                          if(errors.title) setErrors(p => ({...p, title: null}));
+                      }}
+                      className={`w-full mt-1 px-4 py-2 border rounded-lg ${errors.title ? 'border-red-500' : 'border-gray-300'}`}
                     />
+                    {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
                   </div>
 
+                  {/* Description */}
                   <div>
                     <label className="text-sm font-semibold">Description</label>
                     <textarea
@@ -182,35 +205,8 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
                       className="w-full mt-1 px-4 py-2 border rounded-lg resize-none"
                     />
                   </div>
-
-                  <div>
-                    <label className="text-sm font-semibold">Tags</label>
-                    <div className="flex flex-wrap gap-2 mt-1 px-4 py-2 border rounded-lg">
-                      {tags.map((tag, i) => (
-                        <span
-                          key={i}
-                          className="bg-black text-white px-2 py-1 rounded-full text-sm"
-                        >
-                          {tag}
-                          <button
-                            onClick={() => removeTag(tag)}
-                            className="ml-1 text-white"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                      <input
-                        type="text"
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={handleAddTag}
-                        className="flex-1 min-w-[100px] border-none outline-none"
-                        placeholder="Press Enter to add"
-                      />
-                    </div>
-                  </div>
-
+ 
+                  {/* Attachments */}
                   <div>
                     <button
                       type="button"
@@ -229,18 +225,17 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
 
                 {/* Right form section */}
                 <div className="space-y-4">
+                  {/* Assignee */}
                   <div className="relative">
-                    <label className="text-sm font-semibold">Assign To</label>
+                    <label className="text-sm font-semibold">Assign To <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={searchUser}
                       onChange={(e) => setSearchUser(e.target.value)}
                       onFocus={() => setShowUserDropdown(true)}
-                      onBlur={() =>
-                        setTimeout(() => setShowUserDropdown(false), 200)
-                      }
+                      onBlur={() => setTimeout(() => setShowUserDropdown(false), 200)}
                       placeholder="Search staff"
-                      className="w-full mt-1 px-4 py-2 border rounded-lg"
+                      className={`w-full mt-1 px-4 py-2 border rounded-lg ${errors.assignee ? 'border-red-500' : 'border-gray-300'}`}
                     />
                     {showUserDropdown && (
                       <ul className="absolute z-10 bg-white border rounded mt-1 max-h-48 overflow-y-auto w-full shadow-lg">
@@ -251,6 +246,7 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
                               setAssignee(user._id);
                               setSearchUser(user.name);
                               setShowUserDropdown(false);
+                              if(errors.assignee) setErrors(p => ({...p, assignee: null}));
                             }}
                             className="px-4 py-2 hover:bg-gray-100 text-sm cursor-pointer"
                           >
@@ -259,20 +255,20 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
                         ))}
                       </ul>
                     )}
+                    {errors.assignee && <p className="text-xs text-red-500 mt-1">{errors.assignee}</p>}
                   </div>
 
+                  {/* Client */}
                   <div className="relative">
-                    <label className="text-sm font-semibold">Client</label>
+                    <label className="text-sm font-semibold">Client <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={searchClient}
                       onChange={(e) => setSearchClient(e.target.value)}
                       onFocus={() => setShowClientDropdown(true)}
-                      onBlur={() =>
-                        setTimeout(() => setShowClientDropdown(false), 200)
-                      }
+                      onBlur={() => setTimeout(() => setShowClientDropdown(false), 200)}
                       placeholder="Search client"
-                      className="w-full mt-1 px-4 py-2 border rounded-lg"
+                      className={`w-full mt-1 px-4 py-2 border rounded-lg ${errors.client ? 'border-red-500' : 'border-gray-300'}`}
                     />
                     {showClientDropdown && (
                       <ul className="absolute z-10 bg-white border rounded mt-1 max-h-48 overflow-y-auto w-full shadow-lg">
@@ -283,6 +279,7 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
                               setClient(client._id);
                               setSearchClient(client.name);
                               setShowClientDropdown(false);
+                              if(errors.client) setErrors(p => ({...p, client: null}));
                             }}
                             className="px-4 py-2 hover:bg-gray-100 text-sm cursor-pointer"
                           >
@@ -291,36 +288,29 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
                         ))}
                       </ul>
                     )}
+                    {errors.client && <p className="text-xs text-red-500 mt-1">{errors.client}</p>}
                   </div>
 
+                  {/* Priority */}
                   <div>
                     <label className="text-sm font-semibold">Priority</label>
                     <div className="flex gap-2 mt-1">
                       {["Low", "Medium", "High"].map((level) => (
-                        <button
-                          key={level}
-                          type="button"
-                          onClick={() => setPriority(level)}
-                          className={`px-3 py-1 rounded-full border ${
-                            priority === level
-                              ? "bg-black text-white"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
+                        <button key={level} type="button" onClick={() => setPriority(level)}
+                          className={`px-3 py-1 rounded-full border ${priority === level ? "bg-black text-white" : "bg-gray-100 text-gray-700"}`}>
                           {level}
                         </button>
                       ))}
                     </div>
                   </div>
 
+                  {/* Service Type */}
                   <div className="relative">
-                    <label className="text-sm font-semibold">
-                      Service Type
-                    </label>
+                    <label className="text-sm font-semibold">Service Type <span className="text-red-500">*</span></label>
                     <button
                       type="button"
                       onClick={() => setIsServiceTypeOpen(!isServiceTypeOpen)}
-                      className="w-full mt-1 px-4 py-2 border rounded-lg text-left flex justify-between items-center"
+                      className={`w-full mt-1 px-4 py-2 border rounded-lg text-left flex justify-between items-center ${errors.serviceType ? 'border-red-500' : 'border-gray-300'}`}
                     >
                       {serviceType || "Select service type"}
                       <ChevronDown className="w-4 h-4" />
@@ -333,6 +323,7 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
                             onMouseDown={() => {
                               setServiceType(bucket.title);
                               setIsServiceTypeOpen(false);
+                              if(errors.serviceType) setErrors(p => ({...p, serviceType: null}));
                             }}
                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                           >
@@ -341,97 +332,65 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
                         ))}
                       </ul>
                     )}
+                    {errors.serviceType && <p className="text-xs text-red-500 mt-1">{errors.serviceType}</p>}
                   </div>
-
-                  {/* <div>
-                    <label className="text-sm font-semibold">Scheduled Date</label>
-                    <input
-                      type="date"
-                      value={scheduledDate}
-                      onChange={e => setScheduledDate(e.target.value)}
-                      className="w-full mt-1 px-4 py-2 border rounded-lg"
-                    />
-                  </div> */}
-
+                  
+                  {/* Due Date */}
                   <div>
-                    <label className="text-sm font-semibold">Due Date</label>
+                    <label className="text-sm font-semibold">Due Date <span className="text-red-500">*</span></label>
                     <input
                       type="date"
                       value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full mt-1 px-4 py-2 border rounded-lg"
+                      onChange={(e) => {
+                          setDueDate(e.target.value);
+                          if(errors.dueDate) setErrors(p => ({...p, dueDate: null}));
+                      }}
+                      className={`w-full mt-1 px-4 py-2 border rounded-lg ${errors.dueDate ? 'border-red-500' : 'border-gray-300'}`}
                     />
-
-                    {/* Recurring Task Section */}
-                    <div>
-                      <label className="text-sm font-semibold">
-                        Is this task recurring?
-                      </label>
-                      <div className="flex gap-4 mt-2 items-center">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            checked={recurring === true}
-                            onChange={() => setrecurring(true)}
-                          />
-                          Yes
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            checked={recurring === false}
-                            onChange={() => {
-                              setrecurring(false);
-                              setrecurringFrequency("");
-                            }}
-                          />
-                          No
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Recurring Frequency Selector */}
-                    {recurring && (
-                      <div className="mt-2">
-                        <label className="text-sm font-semibold">
-                          Recurring Frequency
-                        </label>
-                        <div className="flex flex-wrap gap-3 mt-1">
-                          {[
-                            "weekly",
-                            "monthly",
-                            "quarterly",
-                            "Bi-Annually",
-                            "annually"
-                          ].map((freq) => (
-                            <button
-                              key={freq}
-                              type="button"
-                              onClick={() => setRecurringFrequency(freq)}
-                              className={`px-3 py-1 border rounded-full text-sm ${
-                                recurringFrequency === freq
-                                  ? "bg-black text-white"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {freq}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    {errors.dueDate && <p className="text-xs text-red-500 mt-1">{errors.dueDate}</p>}
                   </div>
+                  
+                  {/* Recurring Task Section */}
+                  <div>
+                    <label className="text-sm font-semibold">Is this task recurring?</label>
+                    <div className="flex gap-4 mt-2 items-center">
+                      <label className="flex items-center gap-2">
+                        <input type="radio" checked={recurring === true} onChange={() => setRecurring(true)} /> Yes
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input type="radio" checked={recurring === false} onChange={() => {
+                            setRecurring(false);
+                            setRecurringFrequency("");
+                            if(errors.recurringFrequency) setErrors(p => ({...p, recurringFrequency: null}));
+                        }}/> No
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Recurring Frequency Selector */}
+                  {recurring && (
+                    <div className="mt-2">
+                      <label className="text-sm font-semibold">Recurring Frequency <span className="text-red-500">*</span></label>
+                      <div className="flex flex-wrap gap-3 mt-1">
+                        {["weekly", "monthly", "quarterly", "Bi-Annually", "annually"].map((freq) => (
+                          <button key={freq} type="button" onClick={() => {
+                              setRecurringFrequency(freq);
+                              if(errors.recurringFrequency) setErrors(p => ({...p, recurringFrequency: null}));
+                          }}
+                            className={`px-3 py-1 border rounded-full text-sm ${recurringFrequency === freq ? "bg-black text-white" : "bg-gray-100 text-gray-800"}`}>
+                            {freq}
+                          </button>
+                        ))}
+                      </div>
+                      {errors.recurringFrequency && <p className="text-xs text-red-500 mt-1">{errors.recurringFrequency}</p>}
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Action buttons */}
               <div className="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  className="px-6 py-2 border rounded-lg text-gray-600"
-                >
-                  Cancel
-                </button>
+                <button type="button" className="px-6 py-2 border rounded-lg text-gray-600">Cancel</button>
                 <button
                   type="submit"
                   className="px-6 py-2 bg-black text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed"

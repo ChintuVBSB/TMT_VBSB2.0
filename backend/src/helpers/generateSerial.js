@@ -7,8 +7,9 @@ export const generateTaskSerialNumber = async () => {
 
   let nextNumber = 1;
 
-  if (latestTask?.serial_number) {
-    const numPart = parseInt(latestTask.serial_number.replace(prefix, ""), 10);
+  // ⬇️ field name updated here
+  if (latestTask?.taskId) {
+    const numPart = parseInt(latestTask.taskId.replace(prefix, ""), 10);
     if (!isNaN(numPart)) {
       nextNumber = numPart + 1;
     }

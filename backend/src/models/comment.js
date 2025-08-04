@@ -1,29 +1,28 @@
-// models/Comment.js
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-export const CommentSchema = new mongoose.Schema({
-  // Link to the task this comment belongs to
-  Task: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Task', // This 'Task' must match the name you used in your Task model
-    required: true,
-    index: true // Indexing this field makes fetching comments for a task much faster
+const commentSchema = new mongoose.Schema(
+  {
+    text: {
+      type: String,
+      required: [true, "Comment text cannot be empty."],
+    },
+    // ✅ User field, jo 'User' model ko refer karta hai
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "User is required."], // Zaroori field
+    },
+    // ✅ Task field, jo 'Task' model ko refer karta hai
+    task: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
+      required: [true, "Task is required."], // Zaroori field
+    },
   },
-  // Link to the user who wrote the comment
-  User: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // This 'User' must match the name you used in your User model
-    required: true
-  },
-  // The actual text content of the comment
-  content: {
-    type: String,
-    required: true,
-    trim: true
+  {
+    timestamps: true,
   }
-}, {
-  // Automatically add createdAt and updatedAt timestamps
-  timestamps: true 
-});
+);
 
-export default mongoose.model('Comment', CommentSchema);
+const Comment = mongoose.model("Comment", commentSchema);
+export default Comment;

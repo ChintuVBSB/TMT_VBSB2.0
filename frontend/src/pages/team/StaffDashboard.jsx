@@ -1,22 +1,13 @@
-// StaffDashboard.jsx
 import { useEffect, useState, useMemo } from "react";
 import axios from "../../services/api";
 import { getToken } from "../../utils/token";
 import debounce from "lodash.debounce";
 import RejectModal from "../../components/RejectModal";
 import StaffNavbar from "../../components/navbars/StaffNavbar";
-import StaffMISExport from "../team/StaffMISExport";
 import StaffReassignTaskModal from "../team/StaffReassignTaskModal";
-import { Repeat } from "lucide-react";
+import { Repeat, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 
 import {
-  Calendar,
-  Tag,
-  User,
-  ListTodo,
-  CheckCircle,
-  XCircle,
-  Building,
   Kanban,
   Paperclip
 } from "lucide-react";
@@ -27,16 +18,13 @@ import { Dialog } from "@headlessui/react";
 import RewardCard from "../../components/RewardCard";
 import KanbanView from "../KanbanView";
 import CalendarView from "../../components/CalendarView";
-import { useNavigate } from "react-router-dom";
 import socket from "../../socket";
-import MISExport from "../admin/dashboard-widgets/MISExports";
-import StaffTimeLogFilter from "./StaffTimeLogFilter";
 import PageSkelton from "../../components/skeletons/PageSkeleton"
+import StaffTimeLogFilter from "./StaffTimeLogFilter";
+import TaskCommentsModal from "../tasks/TaskCommentsModal";
 
 
 function StaffDashboard() {
-  const navigate = useNavigate();
-
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [search, setSearch] = useState("");
@@ -50,17 +38,17 @@ function StaffDashboard() {
   const [remarkTaskId, setRemarkTaskId] = useState(null);
   const [delayReason, setDelayReason] = useState("");
   const [isRetryRequest, setIsRetryRequest] = useState(false);
-  const [viewMode, setViewMode] = useState("table"); // table | kanban | calenda
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [viewMode, setViewMode] = useState("table");
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [reassignModalTaskId, setReassignModalTaskId] = useState(null);
-    const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openSubtasks, setOpenSubtasks] = useState({});
 
-
-
+     const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
 
   const fetchMyTasks = async () => {
+    setLoading(true);
     try {
       const params = {};
       if (activeTab === "Completed") {
@@ -78,30 +66,11 @@ function StaffDashboard() {
       setFilteredTasks(res.data.tasks);
     } catch (err) {
       console.error("Error fetching tasks", err);
+      toast.error("Failed to fetch tasks.");
+    } finally {
+      setLoading(false);
     }
   };
-
-  
-     
-
-  useEffect(() => {
-    // Socket listener for reminder
-    socket.on("task:reminder", ({ message, taskId }) => {
-      toast(message, {
-        icon: "⚠️",
-        duration: 6000,
-        position: "bottom-left",
-        style: {
-          background: "#fef3c7",
-          color: "#92400e",
-          fontWeight: "bold"
-        }
-      });
-    });
-
-    // Cleanup
-    return () => socket.off("task:reminder");
-  }, []);
 
   const fetchUser = async () => {
     try {
@@ -114,6 +83,35 @@ function StaffDashboard() {
     }
   };
 
+  useEffect(() => {
+    fetchMyTasks();
+    fetchUser();
+  }, [activeTab, filterMode]);
+
+
+  useEffect(() => {
+    socket.on("task:reminder", ({ message }) => {
+      toast(message, {
+        icon: "⚠️",
+        duration: 6000,
+        position: "bottom-left",
+        style: {
+          background: "#fef3c7",
+          color: "#92400e",
+          fontWeight: "bold"
+        }
+      });
+    });
+    return () => socket.off("task:reminder");
+  }, []);
+
+  useEffect(() => {
+    if (user?._id) {
+      socket.emit("join", user._id);
+      console.log("🟢 Joined socket with ID:", user._id);
+    }
+  }, [user]);
+
   const handleAccept = async (taskId) => {
     try {
       await axios.patch(
@@ -123,8 +121,10 @@ function StaffDashboard() {
           headers: { Authorization: `Bearer ${getToken()}` }
         }
       );
+      toast.success("Task accepted!");
       fetchMyTasks();
     } catch (err) {
+      toast.error("Failed to accept task.");
       console.error("Error accepting task", err);
     }
   };
@@ -139,8 +139,10 @@ function StaffDashboard() {
         }
       );
       setShowRejectModal(false);
+      toast.success("Task rejected.");
       fetchMyTasks();
     } catch (err) {
+      toast.error("Failed to reject task.");
       console.error("Error rejecting task", err);
     }
   };
@@ -154,47 +156,27 @@ function StaffDashboard() {
           headers: { Authorization: `Bearer ${getToken()}` }
         }
       );
+      toast.success("Task marked as complete!");
       fetchMyTasks();
     } catch (err) {
+      toast.error("Failed to complete task.");
       console.error("Error completing task", err);
     }
   };
 
-  useEffect(() => {
-    if (user?._id) {
-      socket.emit("join", user._id); // 🔁 Tell backend: "I'm online"
-      console.log("🟢 Joined socket with ID:", user._id);
-    }
-  }, [user]);
-
   const handleRemarkSubmit = async () => {
     try {
-      if (isRetryRequest) {
-        await axios.post(
-          `/assign/tasks/retry-request/${remarkTaskId}`,
-          {
-            remark: remarkText,
-            delayReason
-          },
-          {
-            headers: { Authorization: `Bearer ${getToken()}` }
-          }
-        );
-        toast.success("Retry request sent!");
-      } else {
-        await axios.post(
-          `/assign/tasks/remark/${remarkTaskId}`,
-          {
-            remark: remarkText,
-            delayReason
-          },
-          {
-            headers: { Authorization: `Bearer ${getToken()}` }
-          }
-        );
-        toast.success("Remark submitted!");
-      }
-
+      const endpoint = isRetryRequest
+        ? `/assign/tasks/retry-request/${remarkTaskId}`
+        : `/assign/tasks/remark/${remarkTaskId}`;
+        
+      await axios.post(
+        endpoint,
+        { remark: remarkText, delayReason },
+        { headers: { Authorization: `Bearer ${getToken()}` } }
+      );
+      
+      toast.success(isRetryRequest ? "Retry request sent!" : "Remark submitted!");
       setShowRemarkModal(false);
       setRemarkText("");
       setRemarkTaskId(null);
@@ -207,88 +189,86 @@ function StaffDashboard() {
     }
   };
 
+  // ✅ FIXED: Subtask completion handler
+  const handleSubtaskComplete = async (taskId, subtaskIndex) => {
+    try {
+      // Using the correct backend route: /tasks/:taskId/subtask/:index/complete
+      await axios.patch(
+        `/assign/tasks/${taskId}/subtask/${subtaskIndex}/complete`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        }
+      );
+      toast.success("Subtask status updated!");
+      fetchMyTasks(); // Refresh tasks to show the change
+    } catch (err) {
+      toast.error("Failed to update subtask.");
+      // Log the full error for better debugging
+      console.error("Error completing subtask: ", err.response ? err.response.data : err.message);
+    }
+  };
+
+
   const debouncedFilter = useMemo(
   () =>
     debounce((query) => {
       const filtered = tasks.filter((task) =>
         task.title.toLowerCase().includes(query.toLowerCase()) ||
-        task.serial_number?.toLowerCase().includes(query.toLowerCase())
+        task.taskId?.toLowerCase().includes(query.toLowerCase())
       );
       setFilteredTasks(filtered);
-    }, 500),
+    }, 300),
   [tasks]
 );
-  useEffect(() => {
-    fetchMyTasks();
-    fetchUser();
-  }, [activeTab, filterMode]);
-
+  
   useEffect(() => {
     if (search.trim() === "") {
       setFilteredTasks(tasks);
     } else {
       debouncedFilter(search);
     }
-  }, [search, tasks]);
+  }, [search, tasks, debouncedFilter]);
 
-  const handleRetryRequest = async (taskId) => {
-    try {
-      await axios.post(
-        `/assign/tasks/retry-request/${taskId}`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${getToken()}` }
-        }
-      );
-      fetchMyTasks();
-      toast.success("Retry request sent!");
-    } catch (err) {
-      toast.error("Failed to send retry request.");
-      console.error("Error requesting retry", err);
-    }
-  };
 
-  const filteredByTab = filteredTasks.filter((task) => {
-    if (activeTab === "To Do") return task.status === "Pending";
-    if (activeTab === "In Progress") return task.status === "In Progress";
-    if (activeTab === "Completed") return task.status === "Completed";
-    return true;
-  });
+  const filteredByTab = useMemo(() => {
+    return filteredTasks.filter((task) => {
+        if (activeTab === "To Do") return task.status === "Pending";
+        if (activeTab === "In Progress") return task.status === "In Progress";
+        if (activeTab === "Completed") return task.status === "Completed";
+        return true;
+    });
+}, [filteredTasks, activeTab]);
 
-    useEffect(() => {
-    const fetchAll = async () => {
-      setLoading(true);
-      try {
-        await fetchMyTasks();
-        await fetchUser();
-      } catch (err) {
-        console.error("Error loading dashboard:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAll();
-  }, [activeTab, filterMode]);
-
-  // ✅ Show skeleton while loading
   if (loading) return <PageSkelton count={6} />;
 
   return (
     <>
+
+      {/* ✅ NEW: Render the comments modal */}
+      {showCommentsModal && (
+        <TaskCommentsModal
+          isOpen={showCommentsModal}
+          onClose={() => {
+            setShowCommentsModal(false);
+            setSelectedTask(null);
+            fetchMyTasks(); // Refresh tasks to show new comment count
+          }}
+          task={selectedTask}
+        />
+      )}
       {showReassignModal && (
         <StaffReassignTaskModal
-          task={tasks.find((t) => t._id === reassignModalTaskId)} // ✅ full task object
+          task={tasks.find((t) => t._id === reassignModalTaskId)}
           onClose={() => {
             setShowReassignModal(false);
-            fetchMyTasks(); // Refresh after reassignment
+            fetchMyTasks();
           }}
         />
       )}
 
       <RewardCard />
 
-      {/* Modals */}
       <Dialog
         open={showRemarkModal}
         onClose={() => {
@@ -351,7 +331,6 @@ function StaffDashboard() {
       <StaffNavbar />
 
       <div className="max-w-7xl pt-24 mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Top Heading + Notification */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <BlurText
             text={`Welcome, ${user?.name || "User"}`}
@@ -365,16 +344,14 @@ function StaffDashboard() {
           />
         </div>
         <StaffTimeLogFilter />
-        {/* Search Input */}
         <input
           type="text"
-          placeholder="Search tasks..."
+          placeholder="Search tasks by title or ID..."
           className="w-full p-3 pl-4 border border-gray-300 rounded-md bg-white text-gray-800 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        {/* Tabs */}
         <div className="flex flex-wrap gap-4 sm:gap-8 mb-6 text-sm sm:text-base font-semibold text-gray-700 border-b border-gray-200">
           {["To Do", "In Progress", "Completed"].map((tab) => (
             <button
@@ -391,7 +368,6 @@ function StaffDashboard() {
           ))}
         </div>
 
-        {/* Filter Mode */}
         {activeTab === "Completed" && (
           <div className="flex gap-2 sm:gap-3 mb-4 flex-wrap">
             {["7days", "30days"].map((mode) => (
@@ -410,7 +386,6 @@ function StaffDashboard() {
           </div>
         )}
 
-        {/* Tasks Table or Empty Message */}
         {filteredByTab.length === 0 ? (
           <p className="text-gray-500 text-center mt-10">No tasks found.</p>
         ) : (
@@ -418,19 +393,10 @@ function StaffDashboard() {
             <table className="min-w-full divide-y text-sm divide-gray-200">
               <thead className="bg-gray-100 text-left">
                 <tr>
-                  {[
-                    "Task ID",
-                    "Title",
-                    "Due Date",
-                    "Description",
-                    "Client",
-                    "Tags",
-                    "Assigned By",
-                    "Actions"
-                  ].map((heading) => (
+                  {["Task ID", "Title & Subtasks", "Due Date", "Client", "Assigned By", "Actions"].map((heading) => (
                     <th
                       key={heading}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 whitespace-nowrap"
+                      className="px-4 py-3 text-sm font-medium text-gray-700 whitespace-nowrap"
                     >
                       {heading}
                     </th>
@@ -439,38 +405,70 @@ function StaffDashboard() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {filteredByTab.map((task) => {
-                  const isExpired = (() => {
-                    const due = new Date(task.due_date);
-                    due.setHours(23, 59, 59, 999);
-                    return due < new Date();
-                  })();
+                  const isExpired = new Date(task.due_date) < new Date();
 
                   return (
                     <tr key={task._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap font-mono">
-                        {task.serial_number || "---"}
+                      <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap font-mono align-top">
+                        {task.taskId || "---"}
                       </td>
-                      <td className="px-4 py-3 capitalize whitespace-nowrap">
-                        {task.title}
+                      <td className="px-4 py-4 capitalize align-top">
+                         <div className="font-medium text-gray-800">{task.title}</div>
+                         <div className="text-xs text-gray-500 max-w-xs truncate" title={task.description}>{task.description}</div>
+                        
+                         {task.reassign_remark && (
+                              <div className="mt-2 bg-yellow-50 border-l-4 border-yellow-400 p-2 rounded text-xs text-gray-700">
+                                <strong>Note:</strong> {task.reassign_remark}
+                              </div>
+                          )}
+                        
+                        {task.subtasks && task.subtasks.length > 0 && (
+                          <details className="mt-3 group" onToggle={(e) => setOpenSubtasks({...openSubtasks, [task._id]: e.currentTarget.open })}>
+                            <summary className="cursor-pointer text-xs font-semibold text-blue-600 flex items-center gap-1">
+                             {openSubtasks[task._id] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                              View Subtasks ({task.subtasks.filter(st => st.status === 'Completed').length}/{task.subtasks.length})
+                            </summary>
+                            <ul className="mt-2 space-y-2 pl-4 border-l-2 border-gray-200">
+                              {task.subtasks.map((subtask, index) => ( // ✅ Passing index here
+                                <li key={subtask._id} className="flex items-center gap-2">
+                                  <input 
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    checked={subtask.status === 'Completed'}
+                                    // ✅ FIXED: Calling handleSubtaskComplete with taskId and index
+                                    onChange={() => handleSubtaskComplete(task._id, index)}
+                                    id={`subtask-${subtask._id}`}
+                                    // A subtask can only be marked complete if the main task is "In Progress"
+                                    disabled={task.status !== 'In Progress'}
+                                  />
+                                  <label 
+                                      htmlFor={`subtask-${subtask._id}`} 
+                                      className={`text-sm ${subtask.status === 'Completed' ? 'text-gray-400 line-through' : 'text-gray-700'} ${task.status !== 'In Progress' ? 'cursor-not-allowed' : ''}`}
+                                   >
+                                      {subtask.title}
+                                  </label>
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+
                         {task.attachments && task.attachments.length > 0 && (
-                          <div className="mt-4">
-                            <h3 className="text-sm font-semibold text-gray-700 mb-1">
+                          <div className="mt-3">
+                            <h3 className="text-xs font-semibold text-gray-600 mb-1">
                               Attachments:
                             </h3>
-                            <ul className="list-disc list-inside space-y-1">
+                            <ul className="space-y-1">
                               {task.attachments.map((file, index) => (
                                 <li key={index}>
                                   <a
                                     href={file.fileUrl}
-                                    download={file.filename} // ✅ Force download
+                                    download={file.filename}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline flex items-center gap-2"
+                                    className="text-blue-600 hover:underline text-xs flex items-center gap-1"
                                   >
-                                    <Paperclip
-                                      size={16}
-                                      className="text-blue-500"
-                                    />
+                                    <Paperclip size={12} />
                                     {file.filename}
                                   </a>
                                 </li>
@@ -479,96 +477,95 @@ function StaffDashboard() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap align-top">
                         {new Date(task.due_date).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3 max-w-[180px] truncate">
-                        {task.description}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap align-top">
                         {task.client?.name || "---"}
                       </td>
-                      <td className="px-4 py-3">{task.tags}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap align-top">
                         {task.assigned_by?.name}
                       </td>
+                      <td className="px-4 py-4 align-top">
+                        <div className="flex flex-col items-start gap-2">
+                            {task.status === "Pending" && !isExpired && (
+                                <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleAccept(task._id)}
+                                    className="bg-blue-600 text-white px-3 py-1 text-xs rounded hover:bg-blue-700"
+                                >
+                                    Accept
+                                </button>
+                                <button
+                                    onClick={() => {
+                                    setSelectedTaskId(task._id);
+                                    setShowRejectModal(true);
+                                    }}
+                                    className="bg-gray-500 text-white px-3 py-1 text-xs rounded hover:bg-gray-600"
+                                >
+                                    Reject
+                                </button>
+                                </div>
+                            )}
 
-                      <td className="px-4 py-3 space-y-1 sm:space-y-0 sm:space-x-2 flex flex-col sm:flex-row">
-                        {task.status === "Pending" && !isExpired && (
-                          <>
-                            <button
-                              onClick={() => handleAccept(task._id)}
-                              className="bg-blue-600 text-white px-3 py-1 text-sm rounded hover:bg-blue-700"
-                            >
-                              Accept
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedTaskId(task._id);
-                                setShowRejectModal(true);
-                              }}
-                              className="bg-gray-500 text-white px-3 py-1 text-sm rounded hover:bg-gray-600"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
+                            {task.status === "Pending" && isExpired && (
+                                <>
+                                {task.retryRequested ? (
+                                    <span className="text-blue-600 text-xs font-medium px-3 py-1">
+                                    Retry Requested
+                                    </span>
+                                ) : (
+                                    <button
+                                    onClick={() => {
+                                        setRemarkTaskId(task._id);
+                                        setShowRemarkModal(true);
+                                        setIsRetryRequest(true);
+                                    }}
+                                    className="bg-purple-600 text-white px-3 py-1 text-xs rounded hover:bg-purple-700"
+                                    >
+                                    Request Retry
+                                    </button>
+                                )}
+                                </>
+                            )}
+                            
+                            {(task.status === "Pending" || task.status === "In Progress") && (
+                                 <button
+                                    onClick={() => {
+                                        setReassignModalTaskId(task._id);
+                                        setShowReassignModal(true);
+                                    }}
+                                    title="Reassign Task"
+                                    className="text-yellow-600 hover:text-yellow-800 p-1"
+                                >
+                                    <Repeat size={18} />
+                                </button>
+                            )}
 
-                        {task.status === "Pending" && isExpired && (
-                          <>
-                            {task.retryRequested ? (
-                              <span className="text-blue-600 text-sm font-medium">
-                                Retry Requested
-                              </span>
-                            ) : (
-                              <button
+                            {task.status === "In Progress" && (
+                                <button
+                                onClick={() => handleComplete(task._id)}
+                                className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700"
+                                >
+                                Complete
+                                </button>
+                            )}
+
+                             {/* ✅ NEW: Comments button */}
+                            <button
                                 onClick={() => {
-                                  setRemarkTaskId(task._id);
-                                  setShowRemarkModal(true);
-                                  setIsRetryRequest(true);
+                                  setSelectedTask(task);
+                                  setShowCommentsModal(true);
                                 }}
-                                className="bg-purple-600 text-white px-3 py-1 text-sm rounded hover:bg-purple-700"
-                              >
-                                Request Retry
-                              </button>
-                            )}
-                          </>
-                        )}
-                        <td>
-                          {task.status === "Pending" &&
-                            task.reassign_remark && (
-                              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded mb-2 text-sm text-gray-700">
-                                <strong>
-                                  Note from {task.assigned_by?.name}:
-                                </strong>{" "}
-                                {task.reassign_remark}
-                              </div>
-                            )}
-
-                          {(task.status === "Pending" ||
-                            task.status === "In Progress") && (
-                            <button
-                              onClick={() => {
-                                setReassignModalTaskId(task._id);
-                                setShowReassignModal(true);
-                              }}
-                              data-tooltip-id="tooltip"
-                              data-tooltip-content="Reassign Task"
-                              className="text-yellow-600 hover:text-yellow-800"
+                                title="View Comments"
+                                className="flex items-center gap-1.5 text-gray-600 hover:text-blue-600 p-1"
                             >
-                              <Repeat size={20} />
+                                <MessageSquare size={18} />
+                                <span className="text-xs font-bold bg-gray-200 rounded-full px-1.5 py-0.5">
+                                    {task.comments?.length || 0}
+                                </span>
                             </button>
-                          )}
-                        </td>
-
-                        {task.status === "In Progress" && (
-                          <button
-                            onClick={() => handleComplete(task._id)}
-                            className="bg-green-600 text-white px-3 py-1 text-sm rounded hover:bg-green-700"
-                          >
-                            Complete
-                          </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -578,14 +575,13 @@ function StaffDashboard() {
           </div>
         )}
 
-        {/* View Toggle + Kanban/Calendar View */}
         <div>
           <div className="flex gap-4 mt-4 flex-wrap">
             <button
               className="bg-blue-600 text-white px-3 py-1 text-sm rounded flex items-center gap-2 hover:bg-blue-700"
-              onClick={() => setViewMode("kanban")}
+              onClick={() => setViewMode(viewMode === "kanban" ? "table" : "kanban")}
             >
-              <Kanban /> Kanban
+              <Kanban /> {viewMode === 'kanban' ? 'Table View' : 'Kanban View'}
             </button>
           </div>
 

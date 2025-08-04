@@ -7,7 +7,7 @@ import { getOnlineUsers, getIO } from "../../utils/socketStore.js";
 import { generateTaskSerialNumber } from "../helpers/generateSerial.js";
 import Comment from "../models/comment.js";
 
-export const createTask = async (req, res) => {
+export const createTask = async (req, res) => { 
   try {
     const {
       title,
@@ -39,7 +39,8 @@ export const createTask = async (req, res) => {
         : null;
 
     // 🔢 Serial Number Generate
-    const serial_number = await generateTaskSerialNumber();
+    const taskId = await generateTaskSerialNumber();
+
 
     let attachments = [];
 
@@ -74,7 +75,7 @@ export const createTask = async (req, res) => {
       recurring: isRecurring,
       recurringFrequency: frequency,
       lastRecurringDate: isRecurring ? new Date() : undefined,
-      serial_number, // ✅ add this
+      taskId, // ✅ add this
       logs: [
         {
           action: "Assigned",
@@ -816,30 +817,41 @@ export const getCommentsForTask = (async (req, res) => {
   res.status(200).json(comments);
 });
 
-export const addCommentToTask = (async (req, res) => {
-  const { content } = req.body;
+// ... imports
 
-  if (!content) {
+export const addCommentToTask = (async (req, res) => {
+  // express.json() middleware ki vajah se, ab req.body mein text milega
+  const { text } = req.body;
+  const { taskId } = req.params;
+  const userId = req.user.id;
+
+  // YEH AAPKA MANUAL CHECK HAI (LINE 825)
+  // Yeh ab sahi se kaam karega kyunki 'text' undefined nahi hoga.
+  if (!text || text.trim() === "") {
     res.status(400);
+    // Yahi custom error aapko dikh raha hai
     throw new Error("Comment content cannot be empty.");
   }
 
-  // Create the new comment
-  const comment = new Comment({
-    content,
-    task: req.params.taskId,
-    user: req.user.id // Assuming your auth middleware adds the user to the request
+  // Task find karein
+  const task = await Task.findById(taskId);
+  if (!task) {
+    res.status(404);
+    throw new Error("Task not found");
+  }
+
+  // Naya comment create karein
+  const comment = await Comment.create({
+    text: text,
+    user: userId,
+    task: taskId,
   });
 
-  const createdComment = await comment.save();
-
-  // Populate the user details before sending back the response
-  const populatedComment = await Comment.findById(createdComment._id).populate(
-    "user",
-    "name role"
-  );
-
-  // Here you will emit the WebSocket event! (See Step 3)
+  // Task mein comment reference save karein
+  task.comments.push(comment._id);
+  await task.save();
+  
+  const populatedComment = await Comment.findById(comment._id).populate("user", "name email");
 
   res.status(201).json(populatedComment);
 });

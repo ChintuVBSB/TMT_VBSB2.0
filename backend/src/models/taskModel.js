@@ -69,8 +69,6 @@ const taskSchema = new mongoose.Schema(
       }
     ],
 
-    tags: [String],
-
     reason: {
       type: String,
       default: ""
@@ -85,7 +83,7 @@ const taskSchema = new mongoose.Schema(
       default: ""
     },
 
-    serial_number: {
+    taskId: {
       type: String,
       unique: true,
       index: true

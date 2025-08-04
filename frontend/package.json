@@ -57,6 +57,7 @@
     "react-nice-avatar": "^1.5.0",
     "react-router-dom": "^7.6.2",
     "react-select": "^5.10.2",
+    "react-time-picker": "^7.0.0",
     "react-tooltip": "^5.29.1",
     "recharts": "^3.0.2",
     "socket.io": "^4.8.1",
