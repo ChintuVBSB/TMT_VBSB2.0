@@ -126,7 +126,7 @@ export const saveDraftTimeLog = async (req, res) => {
 
     if (existingLogs.length > 0) {
       return res.status(400).json({
-        message: "❌ Overlapping time log exists. Draft not saved.",
+        message: "Overlapping time log exists. Draft not saved.",
       });
     }
 

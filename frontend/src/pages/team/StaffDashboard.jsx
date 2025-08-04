@@ -414,7 +414,14 @@ function StaffDashboard() {
                       </td>
                       <td className="px-4 py-4 capitalize align-top">
                          <div className="font-medium text-gray-800">{task.title}</div>
-                         <div className="text-xs text-gray-500 max-w-xs truncate" title={task.description}>{task.description}</div>
+                              {task.description && (
+                            <details className="mt-2 text-xs text-gray-500 cursor-pointer group">
+                                <summary className="outline-none select-none font-medium group-hover:underline">View Description</summary>
+                                <p className="mt-1 whitespace-pre-wrap border-l-2 border-gray-200 pl-2">
+                                    {task.description}
+                                </p>
+                            </details>
+                         )}
                         
                          {task.reassign_remark && (
                               <div className="mt-2 bg-yellow-50 border-l-4 border-yellow-400 p-2 rounded text-xs text-gray-700">

@@ -16,8 +16,9 @@ import { DiamondPlus, BadgeAlert, CheckCircle } from "lucide-react";
 import Select from "react-select"; // If you use react-select, otherwise use a native select
 import RemarkModal from "./RemarkModal";
 import PageSkelton from "../../components/skeletons/PageSkeleton";
-import { MessageSquare,ChevronDown, ChevronUp } from "lucide-react"; // Import a nice icon
+import { MessageSquare,ChevronDown, ChevronUp,BellRing } from "lucide-react"; // Import a nice icon
 import TaskCommentsModal from "../tasks/TaskCommentsModal";
+import { BiSolidBellRing } from "react-icons/bi";
 
 const AllTasks = () => {
   const navigate = useNavigate();
@@ -491,9 +492,14 @@ const AllTasks = () => {
                       <div className="font-semibold text-base capitalize text-gray-800">
                         {task.title}
                       </div>
-                      <div className="text-sm capitalize text-gray-500 line-clamp-2">
-                        {task.description}
-                      </div>
+                          {task.description && (
+                            <details className="mt-2 text-xs text-gray-500 cursor-pointer group">
+                                <summary className="outline-none select-none font-medium group-hover:underline">View Description</summary>
+                                <p className="mt-1 whitespace-pre-wrap border-l-2 border-gray-200 pl-2">
+                                    {task.description}
+                                </p>
+                            </details>
+                         )}
                                       {/* ✅ NEW: Subtasks Section */}
                       {task.subtasks && task.subtasks.length > 0 && (
                         <details className="mt-3 group" onToggle={(e) => setOpenSubtasks({...openSubtasks, [task._id]: e.currentTarget.open })}>
@@ -627,7 +633,7 @@ const AllTasks = () => {
                           sendReminder(task._id, task.assigned_to._id);
                         }}
                       >
-                        🔔 Send Reminder
+                        <BiSolidBellRing size={18} />
                       </button>
 
                       <button
