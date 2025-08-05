@@ -514,7 +514,7 @@ function StaffDashboard() {
                                 </button>
                                 </div>
                             )}
-
+                               
                             {task.status === "Pending" && isExpired && (
                                 <>
                                 {task.retryRequested ? (
@@ -535,7 +535,7 @@ function StaffDashboard() {
                                 )}
                                 </>
                             )}
-                            
+                            <div className="flex">
                             {(task.status === "Pending" || task.status === "In Progress") && (
                                  <button
                                     onClick={() => {
@@ -572,6 +572,7 @@ function StaffDashboard() {
                                     {task.comments?.length || 0}
                                 </span>
                             </button>
+                            </div>
                         </div>
                       </td>
                     </tr>
@@ -600,4 +601,4 @@ function StaffDashboard() {
   );
 }
 
-export default StaffDashboard;
+export default StaffDashboard; 
