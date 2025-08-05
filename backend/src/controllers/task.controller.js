@@ -415,21 +415,32 @@ export const rejectTask = async (req, res) => {
 };
 
 // PATCH /tasks/reassign/:taskId
+// ✅ UPDATED AND IMPROVED CONTROLLER
+
 export const reassignTask = async (req, res) => {
   try {
     const { taskId } = req.params;
     const { newAssignee, remark } = req.body;
-    const userId = req.user.id;
+    const reassignerId = req.user.id;
 
     // 1. Find the task
     const task = await Task.findById(taskId);
-    if (!task) return res.status(404).json({ message: "Task not found" });
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    // ✅ NEW: Validation - Check if reassigning to the same user
+    if (task.assigned_to.toString() === newAssignee) {
+        return res.status(400).json({ message: "Task is already assigned to this user." });
+    }
 
     // 2. Find the new assignee
-    const user = await User.findById(newAssignee);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const newAssigneeUser = await User.findById(newAssignee);
+    if (!newAssigneeUser) {
+      return res.status(404).json({ message: "New assignee user not found" });
+    }
 
-    // 3. Update basic fields
+    // 3. Update basic task fields
     task.assigned_to = newAssignee;
     task.status = "Pending";
     task.retryRequested = false;
@@ -446,30 +457,30 @@ export const reassignTask = async (req, res) => {
     }
 
     // 6. Push into reassignment history
-    task.reassign_history = task.reassign_history || [];
     task.reassign_history.push({
-      reassigned_by: userId,
+      reassigned_by: reassignerId,
       reassigned_to: newAssignee,
       remark: remark || "",
       date: new Date()
     });
 
-    // 7. Push into logs[]
-    task.logs = task.logs || [];
+    // ✅ 7. THE MAIN FIX: Update the log entry to include 'to' and 'remark'
     task.logs.push({
       action: "Reassigned",
-      by: userId,
+      by: reassignerId,
+      to: newAssignee, // <-- Yahan 'kise kiya' ki ID save ho rahi hai
+      remark: remark || "", // <-- Remark ko alag se save karein
       date: new Date(),
-      message: `${req.user.role} reassigned task to ${user.name}${remark ? ` with remark: "${remark}"` : ""}`
     });
 
-    // 8. Save task
+    // 8. Save the updated task
     await task.save();
 
     // 9. Send email to new assignee
-    await sendTaskAssignedEmail(user.email, task.title, task.due_date);
+    await sendTaskAssignedEmail(newAssigneeUser.email, task.title, task.due_date);
 
     res.status(200).json({ message: "Task reassigned successfully" });
+
   } catch (err) {
     console.error("Reassign Task Error:", err);
     res.status(500).json({ message: "Failed to reassign task" });
@@ -778,34 +789,46 @@ export const reassignTaskByStaff = async (req, res) => {
   }
 };
 
+// ✅ UPDATED AND FIXED CONTROLLER
+
+
 export const getAllTaskLogs = async (req, res) => {
   try {
-    const tasks = await Task.find({})
-      .populate("logs.by", "name role") // populate user info
-      .populate("logs.to", "name role")
-      .sort({ updatedAt: -1 });
+    // 1. Saare tasks find karein jinmein logs hain
+    const tasksWithLogs = await Task.find({ 'logs.0': { $exists: true } })
+      // ✅ THE MAIN FIX - PART 1: 'taskId' ko bhi select karein
+      .select('title taskId logs') 
+      .populate({
+        path: 'logs',
+        populate: [
+            { path: 'by', select: 'name role' },
+            { path: 'to', select: 'name role' }
+        ]
+      });
 
-    const allLogs = [];
-
-    tasks.forEach((task) => {
-      if (task.logs && task.logs.length > 0) {
-        task.logs.forEach((log) => {
-          allLogs.push({
-            ...log._doc,
-            taskId: task._id,
-            taskTitle: task.title
-          });
-        });
-      }
+    // 2. Saare logs ko ek single flat array mein daalein
+    let allLogs = [];
+    tasksWithLogs.forEach(task => {
+        const logsWithTaskInfo = task.logs.map(log => ({
+            ...log.toObject(),
+            task: {
+                _id: task._id,
+                title: task.title,
+                // ✅ THE MAIN FIX - PART 2: 'taskId' ko har log ke saath jodein
+                taskId: task.taskId 
+            }
+        }));
+        allLogs = allLogs.concat(logsWithTaskInfo);
     });
 
-    // Sort logs by date (latest first)
+    // 3. Poore array ko date se sort karein taaki sabse naye upar aayein
     allLogs.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     res.status(200).json({ logs: allLogs });
+
   } catch (err) {
-    console.error("Failed to fetch task logs:", err);
-    res.status(500).json({ message: "Failed to fetch task logs" });
+    console.error("Failed to fetch all task logs:", err);
+    res.status(500).json({ message: "Server error while fetching logs." });
   }
 };
 

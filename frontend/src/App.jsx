@@ -35,6 +35,7 @@ import RecurringTasks from "./pages/team/RecurringTasks";
 import CalendarPage from "./pages/CalanderPage";
 import TimeSheet from '../src/pages/admin/TimeSheet'
 import AdminTaskListTable from "./components/AdminTaskListTable";
+import AllTaskLogsView from "./components/AllTaskLogsView";
 
 
 const App = () => {
@@ -95,6 +96,15 @@ const App = () => {
             element={
               <ProtectedRoute allowedRoles={["admin", "manager"]}>
                 <AdminProjectDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/activity-logs"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "manager"]}>
+                <AllTaskLogsView/>
               </ProtectedRoute>
             }
           />

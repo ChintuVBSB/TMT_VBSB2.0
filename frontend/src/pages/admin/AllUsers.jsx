@@ -79,7 +79,6 @@ function AllUsers() {
             />
           </div>
 
-            <AllTaskLogs/>
           {/* Table */}
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
