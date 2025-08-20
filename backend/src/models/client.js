@@ -15,10 +15,10 @@ const clientSchema = new mongoose.Schema(
       sparse: true, // Isse null values par unique constraint nahi lagega
     },
 
-    // ✅ FIXED: Parent-Child relationship ke liye
-    // Yeh field parent client (group) ki ID store karega
-    // Agar yeh client khud ek parent group hai, to yeh null rahega
-    parent: {
+    //  Parent-Child relationship ke liye
+    // YAHAN CHANGE KIYA GAYA HAI: 'parent' ko 'group' kar diya gaya hai
+    // taaki yeh frontend se match kare.
+    group: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Client", // Yeh 'Client' model ko hi refer kar raha hai
       default: null,

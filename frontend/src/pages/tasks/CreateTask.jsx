@@ -29,7 +29,7 @@ const CreateTask = () => {
   useEffect(() => {
     const fetchStaff = async () => {
       try {
-        const res = await axios.get("/user?role=staff", {
+        const res = await axios.get("/user", {
           headers: { Authorization: `Bearer ${getToken()}` },
         });
         setUsers(res.data.users);

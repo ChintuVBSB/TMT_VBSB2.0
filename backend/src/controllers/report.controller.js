@@ -1,9 +1,10 @@
- import { Parser } from "json2csv";
+import { Parser } from "json2csv";
 import timeLogModel from "../models/timeLog.model.js";
 import User from "../models/user.js";
 import Client from "../models/client.js";
 import Task from "../models/taskModel.js";
 import TaskBucket from "../models/taskBucket.model.js";
+import ExcelJS from "exceljs";
 
 export const getStaffReport = async (req, res) => {
   try {
@@ -324,6 +325,8 @@ export const getTaskBucketReport = async (req, res) => {
 //   }
 // };
 
+ 
+
 export const exportMISReport = async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -331,58 +334,106 @@ export const exportMISReport = async (req, res) => {
     const fromDate = from ? new Date(from) : new Date("2000-01-01");
     const toDate = to ? new Date(to) : new Date();
 
-    // Fetch all logs in given date range
+    // Fetch logs
     const logs = await timeLogModel.find({
       working_date: { $gte: fromDate, $lte: toDate }
     }).lean();
 
-    // Get unique user and client IDs
-    const userIds = [...new Set(logs.map(log => log.user))];
-    const clientIds = [...new Set(logs.map(log => log.client))];
-    const taskIds = [...new Set(logs.map(log => log.task))]; // optional if used
+    const userIds = [...new Set(logs.map(l => l.user))];
+    const clientIds = [...new Set(logs.map(l => l.client))];
+    const taskIds = [...new Set(logs.map(l => l.task))];
 
-    // Fetch user, client, and task info
     const [users, clients, tasks] = await Promise.all([
       User.find({ _id: { $in: userIds } }).select("name").lean(),
       Client.find({ _id: { $in: clientIds } }).select("name").lean(),
-      Task.find({ _id: { $in: taskIds } }).select("title status assigned_to").lean()
+      Task.find({ _id: { $in: taskIds } }).select("title").lean()
     ]);
 
-    // Create lookup maps
     const userMap = Object.fromEntries(users.map(u => [u._id.toString(), u.name]));
     const clientMap = Object.fromEntries(clients.map(c => [c._id.toString(), c.name]));
     const taskMap = Object.fromEntries(tasks.map(t => [t._id.toString(), t]));
 
-    // Enrich and format logs
-    const enriched = logs.map(log => {
-      const userName = userMap[log.user?.toString()] || "Unknown";
-      const clientName = clientMap[log.client?.toString()] || "Unknown";
-      const task = taskMap[log.task?.toString()] || {};
+    // Workbook and sheet
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("MIS Report");
 
-      return {
-        "User Name": userName,
-        "Client Name": clientName,
-        "Task Title": task?.title || log.title || "",
-        "Task Description": log.task_description || "",
-        "Task Bucket": log.task_bucket || "N/A", // ✅ fixed here
-        "Working Date": log.working_date?.toISOString().split("T")[0],
-        "Start Time": log.start_time,
-        "End Time": log.end_time,
-        "Total Minutes": log.total_minutes,
-        "Task Status": task?.status || log.status || "N/A",
-        "Completion Date": log.completion_date?.toISOString().split("T")[0] || ""
-      };
+    // Header row
+    const headers = [
+      "User Name",
+      "Client Name",
+      "Task Title",
+      "Task Description",
+      "Task Bucket",
+      "Working Date",
+      "Start Time",
+      "End Time",
+      "Total Minutes",
+      "Completion Status"
+    ];
+    sheet.addRow(headers);
+
+    // Style header
+    sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    sheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "4472C4" } // blue background
+    };
+    sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
+
+    // Data rows
+    logs.forEach((log, index) => {
+      const task = taskMap[log.task?.toString()] || {};
+      const completionStatus =
+        log.completion_date
+          ? new Date(log.completion_date).toISOString().split("T")[0]
+          : "Pending";
+
+      const row = [
+        userMap[log.user?.toString()] || "Unknown",
+        clientMap[log.client?.toString()] || "Unknown",
+        task?.title || log.title || "",
+        log.task_description || "",
+        log.task_bucket || "N/A",
+        log.working_date ? new Date(log.working_date).toISOString().split("T")[0] : "",
+        log.start_time || "",
+        log.end_time || "",
+        log.total_minutes || 0,
+        completionStatus
+      ];
+
+      const addedRow = sheet.addRow(row);
+
+      // Alternate row shading
+      if (index % 2 === 0) {
+        addedRow.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "F2F2F2" }
+        };
+      }
     });
 
-    // Convert to CSV
-    const csv = new Parser().parse(enriched);
-    res.header("Content-Type", "text/csv");
-    res.attachment("MIS_Report.csv");
-    return res.send(csv);
+    // Auto column width
+    sheet.columns.forEach(col => {
+      let maxLength = 15;
+      col.eachCell({ includeEmpty: true }, cell => {
+        const columnLength = cell.value ? cell.value.toString().length : 10;
+        if (columnLength > maxLength) maxLength = columnLength;
+      });
+      col.width = maxLength < 30 ? maxLength : 30;
+    });
+
+    // Send file
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=MIS_Report.xlsx");
+
+    await workbook.xlsx.write(res);
+    res.end();
 
   } catch (err) {
-    console.error("CSV Export Error:", err);
-    res.status(500).json({ message: "Failed to export CSV" });
+    console.error("Excel Export Error:", err);
+    res.status(500).json({ message: "Failed to export MIS Report" });
   }
 };
 
@@ -411,13 +462,13 @@ export const exportWeeklySummaryCSV = async (req, res) => {
         const clientTotals = {};
 
         for (const log of logs) {
-         
           const bucket = log.task_bucket || "N/A";
           taskTotals[bucket] = (taskTotals[bucket] || 0) + log.total_minutes;
 
-          const clientName = typeof log.client === "string"
-            ? log.client
-            : (await Client.findById(log.client))?.name || "N/A";
+          const clientName =
+            typeof log.client === "string"
+              ? log.client
+              : (await Client.findById(log.client))?.name || "N/A";
 
           clientTotals[clientName] = (clientTotals[clientName] || 0) + log.total_minutes;
         }
@@ -439,15 +490,93 @@ export const exportWeeklySummaryCSV = async (req, res) => {
       })
     );
 
-    const json2csvParser = new Parser();
-    const csv = json2csvParser.parse(report);
+    // Create workbook
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Weekly Summary");
 
-    res.header("Content-Type", "text/csv");
-    res.attachment(`weekly-summary-${from}-to-${to}.csv`);
-    res.send(csv);
+    // Headers
+    const headers = [
+      "User Name",
+      "Period",
+      "Days",
+      "Expected Hours",
+      "Worked Hours",
+      "Major Task",
+      "Task Time (hrs)",
+      "Major Client",
+      "Client Time (hrs)",
+    ];
+    sheet.addRow(headers);
+
+    // Style headers
+    sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    sheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "305496" }, // dark blue
+    };
+    sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
+
+    // Data rows
+    report.forEach((r, index) => {
+      const row = [
+        r.name,
+        r.period,
+        r.days,
+        r.expected_worked_hours,
+        r.worked_hours,
+        r.major_task,
+        r.major_task_time,
+        r.major_client,
+        r.major_client_time,
+      ];
+
+      const addedRow = sheet.addRow(row);
+
+      // Alternate shading
+      if (index % 2 === 0) {
+        addedRow.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "F2F2F2" }, // light gray
+        };
+      }
+    });
+
+    // Auto width
+    sheet.columns.forEach((col) => {
+      let maxLength = 15;
+      col.eachCell({ includeEmpty: true }, (cell) => {
+        const columnLength = cell.value ? cell.value.toString().length : 10;
+        if (columnLength > maxLength) maxLength = columnLength;
+      });
+      col.width = maxLength < 40 ? maxLength : 40;
+    });
+
+    // Borders
+    sheet.eachRow({ includeEmpty: false }, (row) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
+      });
+    });
+
+    // Send file
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", `attachment; filename=Weekly_Summary_${from}_to_${to}.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (err) {
-    console.error("CSV Export Error:", err);
-    res.status(500).json({ message: "Failed to export CSV" });
+    console.error("Excel Export Error:", err);
+    res.status(500).json({ message: "Failed to export Weekly Summary" });
   }
 };
 

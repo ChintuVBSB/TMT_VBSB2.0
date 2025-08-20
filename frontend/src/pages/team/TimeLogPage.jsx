@@ -222,7 +222,7 @@ function TimeLogPage() {
       total_minutes: totalMinutes,
       assigned_by: form.assignedBy,
       status: form.status,
-      completion_date: form.status === "Completed" ? form.completionDate : ""
+      completion_date: form.status === "Completed" ? form.completionDate : null,
     };
     try {
       await axios.post("/timelog/save-draft", log, {

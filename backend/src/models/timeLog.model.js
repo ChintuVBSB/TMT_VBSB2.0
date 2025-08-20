@@ -11,7 +11,7 @@ const timeLogSchema = new mongoose.Schema({
   total_minutes: { type: Number, required: true },
   assigned_by: { type: String },
   status: { type: String, enum: ["Pending", "Completed","draft"], default: "Pending" },
-  completion_date: { type: Date },
+  completion_date: { type: Date, default: "Pending" },
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }
 }, { timestamps: true });
 export default mongoose.model("TimeLog", timeLogSchema);

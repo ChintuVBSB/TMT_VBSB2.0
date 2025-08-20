@@ -9,7 +9,7 @@ const RecurringTasks = () => {
 
   const fetchRecurringTasks = async () => {
     try {
-      const res = await axios.get("/tasks/recurring", {
+      const res = await axios.get("/assign/tasks/recurring", {
           
           headers: { Authorization: `Bearer ${getToken()}` },
         });
@@ -28,7 +28,7 @@ const RecurringTasks = () => {
   return (
     <>
       <StaffNavbar />
-      <div className="pt-20 px-4 max-w-6xl mx-auto">
+      <div className="pt-28 px-4 max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold mb-6 text-gray-800">Recurring Tasks</h1>
 
         {tasks.length === 0 ? (

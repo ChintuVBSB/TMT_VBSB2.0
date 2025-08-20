@@ -14,7 +14,7 @@ function AdminTaskListTable() {
   
   const formatTasksForCSV = (data) =>
   data.map((task) => ({
-    "Serial No": task.serial_number || "---",
+    "Serial No": task.taskId || "---",
     Title: task.title || "---",
     Description: task.description || "---",
     Status: task.status || "---",
@@ -108,55 +108,83 @@ function AdminTaskListTable() {
     Download All Tasks
   </button>
 </div>
-        <div className="rounded-xl shadow-sm border overflow-hidden">
-          <table className="w-full table-fixed bg-white text-sm">
-            <thead className="bg-gray-100 text-gray-700">
-              <tr>
-                <th className="px-4 py-3 text-left w-[120px]">Serial No</th>
-                <th className="px-4 py-3 text-left w-[160px]">Task Name</th>
-                <th className="px-4 py-3 w-[150px]">Department</th>
-                <th className="px-4 py-3 w-[100px]">Mode</th>
-                <th className="px-4 py-3 w-[100px]">Frequency</th>
-                <th className="px-4 py-3 w-[100px]">HSN/SAC</th>
-                <th className="px-4 py-3 w-[160px]">Reporting Manager</th>
-                <th className="px-4 py-3 w-[200px]">Description</th>
-                <th className="px-4 py-3 w-[100px]">Status</th>
-                <th className="px-4 py-3 w-[140px]">UDIN</th>
-                <th className="px-4 py-3 w-[90px]">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {currentTasks.map((task) => (
-                <tr key={task._id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-xs font-mono">
-                    {task.serial_number || "---"}
-                  </td>
-                  <td className="px-4 py-3 truncate">{task.title}</td>
-                  <td className="px-4 py-3 truncate">{task.department || "---"}</td>
-                  <td className="px-4 py-3">{task.recurring ? "Recurring" : "One Time"}</td>
-                  <td className="px-4 py-3 capitalize">{task.recurringFrequency || "---"}</td>
-                  <td className="px-4 py-3">{task.hsn || "---"}</td>
-                  <td className="px-4 py-3 truncate">{task.assigned_by?.name || "---"}</td>
-                  <td className="px-4 py-3 truncate">{task.description || "No description"}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(task.status)}`}>
-                      {task.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs">{task.udin || "Not Applicable"}</td>
-                  <td className="px-4 py-3 flex items-center gap-3 justify-center text-gray-600">
-                    <button title="Edit">
-                      <Pencil size={18} className="hover:text-blue-600" />
-                    </button>
-                    <button title="Delete">
-                      <Trash2 size={18} className="hover:text-red-500" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+<div className="w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+  <table className="min-w-full divide-y divide-gray-200 bg-white text-sm">
+    <thead className="bg-gray-50 text-left">
+      <tr>
+        <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 min-w-[120px]">Task ID</th>
+        <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 min-w-[200px]">Task Title</th>
+        <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 min-w-[160px]">Assignee</th>
+        <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 min-w-[150px]">Department</th>
+        <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 min-w-[100px]">Mode</th>
+        <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 min-w-[100px]">Frequency</th>
+        <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 min-w-[160px]">Reporting Manager</th>
+        <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 min-w-[250px]">Description</th>
+        <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 min-w-[110px]">Status</th>
+        <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 text-center min-w-[100px]">Actions</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-gray-200">
+      {currentTasks.map((task) => {
+        // Aap is character limit ko apni zaroorat ke hisab se change kar sakte hain.
+        const DESCRIPTION_CHAR_LIMIT = 50; 
+        const isLongDescription = task.description?.length > DESCRIPTION_CHAR_LIMIT;
+
+        return (
+          <tr key={task._id} className="hover:bg-gray-50">
+            <td className="whitespace-nowrap px-4 py-3 text-xs font-mono text-gray-600">
+              {task.taskId || "---"}
+            </td>
+            <td className="whitespace-normal px-4 py-3 font-medium text-gray-900 break-words">{task.title}</td>
+            <td className="whitespace-nowrap px-4 py-3 text-gray-700">{task.assigned_to?.name || "N/A"}</td>
+            <td className="whitespace-nowrap px-4 py-3 text-gray-700">{task.department || "---"}</td>
+            <td className="whitespace-nowrap px-4 py-3 text-gray-700">{task.recurring ? "Recurring" : "One Time"}</td>
+            <td className="whitespace-nowrap px-4 py-3 capitalize text-gray-700">{task.recurringFrequency || "---"}</td>
+            <td className="whitespace-nowrap px-4 py-3 text-gray-700 truncate">{task.assigned_by?.name || "---"}</td>
+            
+            {/* ✅ FIXED: Lambe description ke liye <details> tag ka istemal */}
+            <td className="px-4 py-3 text-gray-700">
+              {task.description ? (
+                isLongDescription ? (
+                  <details className="group">
+                    <summary className="cursor-pointer select-none text-blue-600 hover:underline text-xs font-semibold">
+                      View Description
+                    </summary>
+                    <p className="mt-2 whitespace-normal break-words text-gray-600">
+                      {task.description}
+                    </p>
+                  </details>
+                ) : (
+                  // Chhota description direct dikhayenge
+                  <p className="whitespace-normal break-words">{task.description}</p>
+                )
+              ) : (
+                // Agar description hai hi nahi
+                <span className="text-gray-400">No description</span>
+              )}
+            </td>
+
+            <td className="whitespace-nowrap px-4 py-3">
+              <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusClass(task.status)}`}>
+                {task.status}
+              </span>
+            </td>
+            <td className="whitespace-nowrap px-4 py-3">
+              <div className="flex items-center justify-center gap-2">
+                <button title="Edit" className="p-1 text-gray-500 hover:text-blue-600 transition-colors">
+                  <Pencil size={16} />
+                </button>
+                <button title="Delete" className="p-1 text-gray-500 hover:text-red-600 transition-colors">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </td>
+          </tr>
+        )
+      })}
+    </tbody>
+  </table>
+</div>
 
         {/* Pagination */}
         <div className="flex justify-between items-center mt-6">

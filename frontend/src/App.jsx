@@ -4,7 +4,7 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import ManagerLogin from "./pages/manager/ManagerLogin";
 import TeamLogin from "./pages/team/TeamLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import ManagerDashBoard from "./pages/manager/ManagerDashBoard";
+import ManagerDashBoard from "./pages/manager/ManagerMyTasks";
 import TeamDashBoard from "./pages/team/StaffDashboard";
 import Login from "./pages/Login";
 import CreateTask from "./pages/tasks/CreateTask";
@@ -36,6 +36,7 @@ import CalendarPage from "./pages/CalanderPage";
 import TimeSheet from '../src/pages/admin/TimeSheet'
 import AdminTaskListTable from "./components/AdminTaskListTable";
 import AllTaskLogsView from "./components/AllTaskLogsView";
+import ManagerMyTasks from "./pages/manager/ManagerMyTasks";
 
 
 const App = () => {
@@ -87,6 +88,15 @@ const App = () => {
             element={
               <ProtectedRoute allowedRoles={["admin", "manager"]}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+           <Route
+            path="/my-tasks"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "manager"]}>
+                <ManagerMyTasks/>
               </ProtectedRoute>
             }
           />

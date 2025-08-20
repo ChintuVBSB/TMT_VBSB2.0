@@ -132,7 +132,8 @@ const taskSchema = new mongoose.Schema(
             "Reassigned",
             "Completed",
             "Retry Requested",
-            "Delayed"
+            "Delayed",
+             "Reassigned by Staff",
           ]
         },
         by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

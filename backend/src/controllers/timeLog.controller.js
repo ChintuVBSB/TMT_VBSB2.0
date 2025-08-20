@@ -17,7 +17,6 @@ export const addTimeLog = async (req, res) => {
       allotted_date,
       status,
       completion_date,
-      task_title,
     } = req.body;
 
     const userId = req.user.id;
@@ -65,7 +64,6 @@ export const addTimeLog = async (req, res) => {
       allotted_date,
       status: completion_date ? "Completed" : "Pending",
       completion_date,
-      task_title,
       user: userId,
     });
 
@@ -186,7 +184,9 @@ export const saveDraftTimeLog = async (req, res) => {
   };
 
 
-  export const exportTimeLogsByUser = async (req, res) => {
+ 
+
+export const exportTimeLogsByUser = async (req, res) => {
   try {
     const userId = req.user.id;
     const { from, to } = req.query;
@@ -197,25 +197,75 @@ export const saveDraftTimeLog = async (req, res) => {
         $gte: new Date(from),
         $lte: new Date(to),
       },
-      status: { $ne: "draft" }, // skip drafts
-    }).lean();
+      status: { $ne: "draft" },
+      
+    }).populate('client', 'name')
+    .lean();
+
+    console.log(logs)
 
     if (!logs || logs.length === 0) {
       return res.status(404).json({ message: "No logs found in given range" });
     }
 
+    // 🧠 Fetch all related task details
+    const taskIds = logs.map((log) => log.task).filter(Boolean);
+    const tasks = await Task.find({ _id: { $in: taskIds } })
+      .select("title description updatedAt status")
+      .lean();
+
+    const taskMap = {};
+    tasks.forEach((task) => {
+      taskMap[task._id.toString()] = task;
+    });
+
+    // 🔁 Format logs for CSV
+    const formatted = logs.map((log) => {
+      const task = taskMap[log.task?.toString()] || {};
+
+      const formatTime = (time) =>
+        typeof time === "string"
+          ? time
+          : new Date(time).toLocaleTimeString("en-GB", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+      return {
+        working_date: new Date(log.working_date).toISOString().split("T")[0],
+        title: task.title || log.title || "",
+        task_description: task.description || log.task_description || "",
+        start_time: formatTime(log.start_time),
+        end_time: formatTime(log.end_time),
+        total_minutes: log.total_minutes,
+       completion_date: log.completion_date ?
+      new Date(log.completion_date).toISOString().split("T")[0] :
+      "Pending",
+      client: log.client.name ? log.client.name : "N/A",
+      task_bucket: log.task_bucket || "",
+      assigned_by: log.assigned_by || "",
+      };
+      
+
+    
+    });
+
+    // 🧾 Fields to export
     const fields = [
       "working_date",
-      "task_title",
+      "title",
       "task_description",
       "start_time",
       "end_time",
       "total_minutes",
-      "status",
+      "completion_date",
+      "client",
+      "task_bucket",
+      "assigned_by"
     ];
     const opts = { fields };
     const parser = new Parser(opts);
-    const csv = parser.parse(logs);
+    const csv = parser.parse(formatted);
 
     res.header("Content-Type", "text/csv");
     res.attachment(`TimeLogs-${Date.now()}.csv`);

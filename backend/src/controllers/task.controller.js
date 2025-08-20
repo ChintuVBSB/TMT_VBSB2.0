@@ -101,7 +101,7 @@ export const createTask = async (req, res) => {
 
 export const getAllTasks = async (req, res) => {
   try {
-    const { status, priority, assigned_to, assigned_by, client, search, from } =
+    const { status, priority, assigned_to, assigned_by, client, search, from, recurring } =
       req.query;
     const query = {};
 
@@ -110,6 +110,12 @@ export const getAllTasks = async (req, res) => {
     if (assigned_to) query.assigned_to = assigned_to;
     if (assigned_by) query.assigned_by = assigned_by;
     if (client) query.client = client;
+
+       // ✅ Recurring filter
+    if (recurring) {
+      query.recurring = recurring === "true"; 
+    }
+    console.log("Mongo filter applied:", query);
 
     // Date filter
     if (from) {
@@ -122,7 +128,7 @@ export const getAllTasks = async (req, res) => {
         { title: searchRegex },
         { tags: searchRegex },
         { description: searchRegex },
-        { serial_number: searchRegex } // ✅ Now even serial no. is searchable!
+        { taskId: searchRegex } // ✅ Now even taskId is searchable!
       ];
     }
 
@@ -242,21 +248,13 @@ export const getMyTasks = async (req, res) => {
       .populate("assigned_by", "name email");
 
     res.status(200).json({ tasks });
-
-    // Optional: Almost due logic (not used in response)
-    // const now = new Date();
-    // const next24hrs = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    // const almostDueTasks = tasks.filter(
-    //   (task) =>
-    //     new Date(task.due_date) <= next24hrs && task.status !== "Completed"
-    // );
   } catch (err) {
     console.error("Error in getMyTasks:", err);
     res.status(500).json({ message: "Failed to fetch tasks" });
   }
 };
 
-//   try {
+
 //     const userId = req.user._id || req.user.id; // 🛡️ middleware ne lagaya hai
 //      const tasks = await Task.find({ assigned_to: userId })
 //        .populate("client", "name")
@@ -276,8 +274,7 @@ export const getMyTasks = async (req, res) => {
 //     console.error("Error in getMyTasks:", err);
 //     res.status(500).json({ message: "Failed to fetch tasks" });
 //   }
-// };
-
+// }
 export const acceptTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -630,7 +627,7 @@ export const acceptRetryRequest = async (req, res) => {
     // Log the acceptance
     task.logs = task.logs || [];
     task.logs.push({
-      action: "Retry Accepted",
+      action: "Retry Requested",
       by: req.user.id,
       date: new Date(),
       message: `Retry accepted and task reassigned to user ${userId}`

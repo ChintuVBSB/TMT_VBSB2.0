@@ -29,7 +29,7 @@ function ReassignTaskModal({ task, onClose }) {
 
     try {
       await axios.patch(
-        `/assign/reassign/staff/${taskId}`,
+        `http://localhost:8000/api/assign/reassign/staff/${taskId}`,
         { newAssignee: selectedStaff, remark },
         {
           headers: { Authorization: `Bearer ${getToken()}` },

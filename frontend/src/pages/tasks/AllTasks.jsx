@@ -50,6 +50,8 @@ const AllTasks = () => {
   const [loading, setLoading] = useState(true);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
     const [openSubtasks, setOpenSubtasks] = useState({}); // To track open subtask dropdowns
+    const [activeTab, setActiveTab] = useState("All");
+
 
   const debouncedSearch = useCallback(
     debounce((value) => {
@@ -63,40 +65,49 @@ const AllTasks = () => {
     setFilters((prev) => ({ ...prev, status }));
 
   // Fetch tasks from backend
-  const fetchTasks = async () => {
-    try {
-      const params = { ...filters };
-      if (filters.status === "All") {
-        delete params.status;
-      }
-
-      // The 'status' filter will now correctly handle "Expired" if your backend is set up for it.
-      if (assignedToFilter) params.assigned_to = assignedToFilter;
-      if (assignedByFilter) params.assigned_by = assignedByFilter;
-      if (clientFilter) params.client = clientFilter;
-
-      // Add date filter params
-      if (dateFilter === "7days") {
-        params.from = new Date(
-          Date.now() - 7 * 24 * 60 * 60 * 1000
-        ).toISOString();
-      }
-      if (dateFilter === "30days") {
-        params.from = new Date(
-          Date.now() - 30 * 24 * 60 * 60 * 1000
-        ).toISOString();
-      }
-
-      const res = await axios.get("/assign/tasks", {
-        headers: { Authorization: `Bearer ${getToken()}` },
-        params
-      });
-      setTasks(res.data.tasks);
-      console.log(res.data)
-    } catch (err) {
-      console.error("Error loading tasks", err);
+// Fetch tasks from backend
+const fetchTasks = async () => {
+  try {
+    const params = { ...filters };
+    
+    // status "All" ka case handle
+    if (filters.status === "All") {
+      delete params.status;
     }
-  };
+
+    if (assignedToFilter) params.assigned_to = assignedToFilter;
+    if (assignedByFilter) params.assigned_by = assignedByFilter;
+    if (clientFilter) params.client = clientFilter;
+
+    // Date filters
+    if (dateFilter === "7days") {
+      params.from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    if (dateFilter === "30days") {
+      params.from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    // ✅ Add recurring filter if tab is Recurring
+   if (filters.status === "Recurring") {
+  params.recurring = true; // string nahi, boolean
+  delete params.status;    // status filter hata do warna conflict karega
+}
+
+    console.log("Fetching tasks with params:", params);
+
+    const res = await axios.get("/assign/tasks", {
+      headers: { Authorization: `Bearer ${getToken()}` },
+      params
+    });
+
+    setTasks(res.data.tasks);
+    console.log(res.data);
+
+  } catch (err) {
+    console.error("Error loading tasks", err);
+  }
+};
+
 
   const statusBadgeColorMap = {
     Pending: "bg-red-100 text-red-700",
@@ -182,7 +193,7 @@ const AllTasks = () => {
   const handleAcceptRetry = async (taskId, userId) => {
     try {
       const res = await axios.patch(
-        `/assign/tasks/accept-retry/${taskId}`,
+        `http://localhost:8000/api/assign/tasks/accept-retry/${taskId}`,
         { userId },
         {
           headers: {
@@ -299,9 +310,9 @@ const AllTasks = () => {
               "In Progress",
               "Completed",
               "Expired",
-              "Rejected"
+              "Rejected",
+              "Recurring"
             ].map(
-              // <-- ADDED "Expired" HERE
               (status) => (
                 <button
                   key={status}

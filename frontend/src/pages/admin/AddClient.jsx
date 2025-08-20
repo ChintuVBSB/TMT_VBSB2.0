@@ -9,8 +9,7 @@ import {
   Building2,
   UserPlus,
   UsersRound,
-  ChevronDown,
-   Download 
+  Download,
 } from "lucide-react";
 import { MdEmail } from "react-icons/md";
 import Papa from "papaparse";
@@ -18,7 +17,8 @@ import Papa from "papaparse";
 function AddClient() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [parentId, setParentId] = useState(""); // ✅ FIXED: State for parent selection
+  //CHANGE: State ka naam 'parentId' se 'groupId' kar diya for consistency
+  const [groupId, setGroupId] = useState("");
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
@@ -28,9 +28,8 @@ function AddClient() {
   const fetchClients = async () => {
     try {
       const res = await axios.get("/clients", {
-        headers: { Authorization: `Bearer ${getToken()}` }
+        headers: { Authorization: `Bearer ${getToken()}` },
       });
-      // The backend should populate the parent field
       setClients(res.data);
       setFilteredClients(res.data);
     } catch (err) {
@@ -49,14 +48,13 @@ function AddClient() {
       (client) =>
         client.name.toLowerCase().includes(lowerSearch) ||
         (client.email && client.email.toLowerCase().includes(lowerSearch)) ||
-        // ✅ ADDED: Search by parent name
-        (client.parent && client.parent.name.toLowerCase().includes(lowerSearch))
+        (client.group && client.group.name.toLowerCase().includes(lowerSearch)) // Yeh pehle se sahi tha
     );
     setFilteredClients(filtered);
   }, [search, clients]);
 
-
   const handleCSVUpload = async (e) => {
+    // ... (Is function mein koi change nahi)
     const file = e.target.files[0];
     if (!file) return;
 
@@ -64,8 +62,6 @@ function AddClient() {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
-        // NOTE: The backend '/clients/upload' route MUST be updated
-        // to handle 'parentName' and find its ID.
         const data = results.data;
         try {
           const res = await axios.post(
@@ -76,10 +72,12 @@ function AddClient() {
           toast.success(res.data.message || "Clients imported!");
           fetchClients();
         } catch (err) {
-          toast.error("CSV upload failed. Make sure the backend is configured for the new format.");
+          toast.error(
+            "CSV upload failed. Make sure the backend is configured for the new format."
+          );
           console.error(err);
         }
-      }
+      },
     });
   };
 
@@ -87,16 +85,16 @@ function AddClient() {
     e.preventDefault();
     setLoading(true);
     try {
-      // ✅ FIXED: Send `parent` instead of `gstin`
+      // ✅ CHANGE: Ab 'parentId' ki jagah 'groupId' bhej rahe hain
       await axios.post(
         "/clients",
-        { name, email, parent: parentId || null }, // Send null if no parent is selected
+        { name, email, group: groupId || null }, // Send null if no group is selected
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );
       toast.success("Client added!");
       setName("");
       setEmail("");
-      setParentId(""); // Reset parent dropdown
+      setGroupId(""); // ✅ CHANGE: Dropdown ko reset kiya
       fetchClients();
     } catch (err) {
       toast.error(err.response?.data?.message || "Error adding client");
@@ -105,32 +103,28 @@ function AddClient() {
     }
   };
 
-    // ✅ NEW: Function to handle CSV download
+  // Function to handle CSV download
   const handleDownloadCSV = () => {
     if (clients.length === 0) {
       toast.error("No clients to download.");
       return;
     }
 
-
-        // 1. Prepare the data with the correct headers
-    const dataForCSV = clients.map(client => ({
+    // ✅ CHANGE: Yahan 'client.parent' ko 'client.group' kar diya
+    const dataForCSV = clients.map((client) => ({
       name: client.name,
       email: client.email || "",
-      parentName: client.parent ? client.parent.name : ""
+      parentName: client.group ? client.group.name : "", // <-- THEEK KAR DIYA
     }));
 
-    // 2. Convert JSON data to a CSV string
     const csv = Papa.unparse(dataForCSV);
-
-    // 3. Create a Blob and trigger the browser download
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
       link.setAttribute("download", "clients_list.csv");
-      link.style.visibility = 'hidden';
+      link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -148,8 +142,8 @@ function AddClient() {
           </h1>
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 mb-8">
-            {/* Client Name Input */}
-            <div>
+            {/* ... Client Name & Email inputs waise hi rahenge ... */}
+             <div>
               <label className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-1">
                 <Building2 className="w-4 h-4" />
                 Client / Group Name*
@@ -162,29 +156,27 @@ function AddClient() {
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            
-            {/* ✅ NEW: Parent Group Selection Dropdown */}
+            {/* Parent Group Selection Dropdown */}
             <div>
               <label className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-1">
                 <UsersRound className="w-4 h-4" />
                 Client Group (Optional)
               </label>
               <select
-                value={parentId}
-                onChange={(e) => setParentId(e.target.value)}
+                // ✅ CHANGE: 'parentId' ko 'groupId' se badal diya
+                value={groupId}
+                onChange={(e) => setGroupId(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500"
               >
-                  <option value="">-- None (This is a Parent Group) --</option>
-                  {clients.map(client => (
-                      <option key={client._id} value={client._id}>
-                          {client.name}
-                      </option>
-                  ))}
+                <option value="">-- None (This is a Parent Group) --</option>
+                {clients.map((client) => (
+                  <option key={client._id} value={client._id}>
+                    {client.name}
+                  </option>
+                ))}
               </select>
             </div>
-
-            {/* Email Input */}
-            <div>
+             <div>
               <label className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-1">
                 <MdEmail className="w-4 h-4" />
                 Email
@@ -197,7 +189,6 @@ function AddClient() {
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
               />
             </div>
-
             {/* Submit Button */}
             <div>
               <button
@@ -212,7 +203,7 @@ function AddClient() {
             </div>
           </form>
 
-          {/* ✅ UPDATED: CSV Upload Section */}
+          {/* ... CSV Upload section waise hi rahega ... */}
           <div className="mb-8 p-4 bg-gray-50 rounded-lg border">
             <label className="text-sm font-semibold text-gray-700 mb-2 block">
               Bulk Upload via CSV
@@ -225,11 +216,10 @@ function AddClient() {
               className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 rounded-md"
             />
           </div>
-
           <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-3">
             <Building2 className="w-5 h-5" /> Existing Clients
           </h2>
- <button
+          <button
                   onClick={handleDownloadCSV}
                   disabled={clients.length === 0}
                   className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
@@ -251,16 +241,27 @@ function AddClient() {
                 <ul className="divide-y divide-gray-200">
                   {filteredClients.map((client) => (
                     <li key={client._id} className="p-3">
-                      <p className="font-semibold text-gray-800">{client.name}</p>
+                      <p className="font-semibold text-gray-800">
+                        {client.name}
+                      </p>
                       <span className="text-sm text-gray-500">
-                        {/* ✅ UPDATED: Display Parent Group */}
-                        Group: <strong className="text-gray-700">{client.parent ? client.parent.name : "N/A"}</strong> | Email: <strong className="text-gray-700">{client.email || "N/A"}</strong>
+                        {/* ✅ CHANGE: Yahan 'client.parent' ko 'client.group' kar diya */}
+                        Group:{" "}
+                        <strong className="text-gray-700">
+                          {client.group ? client.group.name : "N/A"}
+                        </strong>{" "}
+                        | Email:{" "}
+                        <strong className="text-gray-700">
+                          {client.email || "N/A"}
+                        </strong>
                       </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="p-4 text-center text-gray-500">No clients found.</p>
+                <p className="p-4 text-center text-gray-500">
+                  No clients found.
+                </p>
               )}
             </div>
           </div>
