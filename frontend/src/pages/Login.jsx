@@ -18,7 +18,7 @@ function Login() {
   e.preventDefault();
   setLoading(true);
   try {
-    const res = await axios.post("/auth/login", { email, password });
+    const res = await axios.post("http://localhost:8000/api/auth/login", { email, password });
 
     // ✅ Get token + user directly
     const { token, user } = res.data;

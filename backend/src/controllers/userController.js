@@ -59,12 +59,12 @@ export const getAllUsers = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, role, status, password } = req.body;
+    const { name, role, status} = req.body;
 
     // Find and update user
     const updatedUser = await User.findByIdAndUpdate(
       id,
-      { name, role, status, password},
+      { name, role, status},
       { new: true }
     ) 
 

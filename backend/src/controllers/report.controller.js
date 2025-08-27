@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import { Parser } from "json2csv";
 import timeLogModel from "../models/timeLog.model.js";
 import User from "../models/user.js";
@@ -327,6 +328,130 @@ export const getTaskBucketReport = async (req, res) => {
 
  
 
+// export const exportMISReport = async (req, res) => {
+//   try {
+//     const { from, to } = req.query;
+
+//     const fromDate = from ? new Date(from) : new Date("2000-01-01");
+//     const toDate = to ? new Date(to) : new Date();
+
+//     // Fetch logs
+//     const logs = await timeLogModel.find({
+//       working_date: { $gte: fromDate, $lte: toDate }
+//     }).lean();
+
+//     const userIds = [...new Set(logs.map(l => l.user?.toString()))];
+//     console.log("Logs Users:", logs.map(l => l.user));
+
+
+//     const clientIds = [...new Set(logs.map(l => l.client))];
+//     const taskIds = [...new Set(logs.map(l => l.task))];
+
+//   const [users, clients, tasks] = await Promise.all([
+//   User.find({ _id: { $in: userIds.map(id => new mongoose.Types.ObjectId(id)) } })
+//       .select("name")
+//       .lean(),
+//   Client.find({ _id: { $in: clientIds.map(id => new mongoose.Types.ObjectId(id)) } })
+//       .select("name")
+//       .lean(),
+//   Task.find({ _id: { $in: taskIds.map(id => new mongoose.Types.ObjectId(id)) } })
+//       .select("title status assigned_to")
+//       .lean()
+// ]);
+
+    
+
+//    console.log("users:", users); // Add this line before userMap
+// const userMap = Object.fromEntries(users.map(u => [u._id.toString(), u.name]));
+// console.log("userIds:", userIds);
+// console.log(userMap);
+//     const clientMap = Object.fromEntries(clients.map(c => [c._id.toString(), c.name]));
+//     const taskMap = Object.fromEntries(tasks.map(t => [t._id.toString(), t]));
+
+//     // Workbook and sheet
+//     const workbook = new ExcelJS.Workbook();
+//     const sheet = workbook.addWorksheet("MIS Report");
+
+//     // Header row
+//     const headers = [
+//       "User Name",
+//       "Client Name",
+//       "Task Title",
+//       "Task Description",
+//       "Task Bucket",
+//       "Working Date",
+//       "Start Time",
+//       "End Time",
+//       "Total Minutes",
+//       "Completion Status"
+//     ];
+//     sheet.addRow(headers);
+
+//     // Style header
+//     sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+//     sheet.getRow(1).fill = {
+//       type: "pattern",
+//       pattern: "solid",
+//       fgColor: { argb: "4472C4" } // blue background
+//     };
+//     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
+
+//     // Data rows
+//     logs.forEach((log, index) => {
+//       const task = taskMap[log.task?.toString()] || {};
+//       const completionStatus =
+//         log.completion_date
+//           ? new Date(log.completion_date).toISOString().split("T")[0]
+//           : "Pending";
+
+//       const row = [
+//         userMap[log.user?.toString()] || "Unknown",
+//         clientMap[log.client?.toString()] || "Unknown",
+//         task?.title || log.title || "",
+//         log.task_description || "",
+//         log.task_bucket || "N/A",
+//         log.working_date ? new Date(log.working_date).toISOString().split("T")[0] : "",
+//         log.start_time || "",
+//         log.end_time || "",
+//         log.total_minutes || 0,
+//         completionStatus
+//       ];
+
+//       const addedRow = sheet.addRow(row);
+
+//       // Alternate row shading
+//       if (index % 2 === 0) {
+//         addedRow.fill = {
+//           type: "pattern",
+//           pattern: "solid",
+//           fgColor: { argb: "F2F2F2" }
+//         };
+//       }
+//     });
+
+//     // Auto column width
+//     sheet.columns.forEach(col => {
+//       let maxLength = 15;
+//       col.eachCell({ includeEmpty: true }, cell => {
+//         const columnLength = cell.value ? cell.value.toString().length : 10;
+//         if (columnLength > maxLength) maxLength = columnLength;
+//       });
+//       col.width = maxLength < 30 ? maxLength : 30;
+//     });
+
+//     // Send file
+//     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+//     res.setHeader("Content-Disposition", "attachment; filename=MIS_Report.xlsx");
+
+//     await workbook.xlsx.write(res);
+//     res.end();
+
+//   } catch (err) {
+//     console.error("Excel Export Error:", err);
+//     res.status(500).json({ message: "Failed to export MIS Report" });
+//   }
+// };
+
 export const exportMISReport = async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -334,24 +459,13 @@ export const exportMISReport = async (req, res) => {
     const fromDate = from ? new Date(from) : new Date("2000-01-01");
     const toDate = to ? new Date(to) : new Date();
 
-    // Fetch logs
+    // Fetch logs with populate
     const logs = await timeLogModel.find({
       working_date: { $gte: fromDate, $lte: toDate }
-    }).lean();
-
-    const userIds = [...new Set(logs.map(l => l.user))];
-    const clientIds = [...new Set(logs.map(l => l.client))];
-    const taskIds = [...new Set(logs.map(l => l.task))];
-
-    const [users, clients, tasks] = await Promise.all([
-      User.find({ _id: { $in: userIds } }).select("name").lean(),
-      Client.find({ _id: { $in: clientIds } }).select("name").lean(),
-      Task.find({ _id: { $in: taskIds } }).select("title").lean()
-    ]);
-
-    const userMap = Object.fromEntries(users.map(u => [u._id.toString(), u.name]));
-    const clientMap = Object.fromEntries(clients.map(c => [c._id.toString(), c.name]));
-    const taskMap = Object.fromEntries(tasks.map(t => [t._id.toString(), t]));
+    })
+      .populate("user", "name")     
+      .populate("client", "name")    
+      .lean();
 
     // Workbook and sheet
     const workbook = new ExcelJS.Workbook();
@@ -377,22 +491,20 @@ export const exportMISReport = async (req, res) => {
     sheet.getRow(1).fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: "4472C4" } // blue background
+      fgColor: { argb: "4472C4" }
     };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
 
     // Data rows
     logs.forEach((log, index) => {
-      const task = taskMap[log.task?.toString()] || {};
-      const completionStatus =
-        log.completion_date
-          ? new Date(log.completion_date).toISOString().split("T")[0]
-          : "Pending";
+      const completionStatus = log.completion_date
+        ? new Date(log.completion_date).toISOString().split("T")[0]
+        : "Pending";
 
       const row = [
-        userMap[log.user?.toString()] || "Unknown",
-        clientMap[log.client?.toString()] || "Unknown",
-        task?.title || log.title || "",
+        log.user?.name || "Unknown",
+        log.client?.name || "Unknown",
+        log.task?.title || log.title || "",
         log.task_description || "",
         log.task_bucket || "N/A",
         log.working_date ? new Date(log.working_date).toISOString().split("T")[0] : "",
@@ -436,7 +548,6 @@ export const exportMISReport = async (req, res) => {
     res.status(500).json({ message: "Failed to export MIS Report" });
   }
 };
-
 
 
 export const exportWeeklySummaryCSV = async (req, res) => {

@@ -7,7 +7,7 @@ import { getOnlineUsers, getIO } from "../../utils/socketStore.js";
 import { generateTaskSerialNumber } from "../helpers/generateSerial.js";
 import Comment from "../models/comment.js";
 
-export const createTask = async (req, res) => { 
+export const createTask = async (req, res) => {
   try {
     const {
       title,
@@ -40,7 +40,6 @@ export const createTask = async (req, res) => {
 
     // 🔢 Serial Number Generate
     const taskId = await generateTaskSerialNumber();
-
 
     let attachments = [];
 
@@ -101,21 +100,31 @@ export const createTask = async (req, res) => {
 
 export const getAllTasks = async (req, res) => {
   try {
-    const { status, priority, assigned_to, assigned_by, client, search, from, recurring } =
-      req.query;
+    const {
+      status,
+      priority,
+      assigned_to,
+      assigned_by,
+      client,
+      search,
+      from,
+      recurring
+    } = req.query;
     const query = {};
 
+    if (status) {
+      if (status === "recurring") {
+        query.recurring = true; // ✅ ab sirf recurring:true wale hi aayenge
+      } else {
+        query.status = status; // ✅ normal status filter
+      }
+    }
     if (status) query.status = status;
     if (priority) query.priority = priority;
+
     if (assigned_to) query.assigned_to = assigned_to;
     if (assigned_by) query.assigned_by = assigned_by;
     if (client) query.client = client;
-
-       // ✅ Recurring filter
-    if (recurring) {
-      query.recurring = recurring === "true"; 
-    }
-    console.log("Mongo filter applied:", query);
 
     // Date filter
     if (from) {
@@ -128,7 +137,7 @@ export const getAllTasks = async (req, res) => {
         { title: searchRegex },
         { tags: searchRegex },
         { description: searchRegex },
-        { taskId: searchRegex } // ✅ Now even taskId is searchable!
+        { taskId: searchRegex } // ✅ Now even serial no. is searchable!
       ];
     }
 
@@ -254,7 +263,6 @@ export const getMyTasks = async (req, res) => {
   }
 };
 
-
 //     const userId = req.user._id || req.user.id; // 🛡️ middleware ne lagaya hai
 //      const tasks = await Task.find({ assigned_to: userId })
 //        .populate("client", "name")
@@ -277,27 +285,32 @@ export const getMyTasks = async (req, res) => {
 // }
 export const acceptTask = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: "Task not found" });
+    const taskId = req.params.id; // Task ki ID ko ek variable mein le lein
 
-    // 📝 Initialize logs if missing
-    if (!task.logs) task.logs = [];
+    // 1. Pehle task ko find karein taaki hum uska title nikal sakein
+    // Yeh check karna zaroori hai ki task maujood hai ya nahi.
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
 
-    // ➕ Push log entry
-    task.logs.push({
+    const newLogEntry = {
       action: "Accepted",
       by: req.user.id,
-      date: new Date(),
-      message: `${req.user.role} accepted the task.`
-    });
+      taskTitle: task.title
+    };
 
-    // ✅ Update task status
-    task.status = "In Progress";
+    // 3. Ek hi operation mein status update karein aur naya log push karein
+    const updatedTask = await Task.findByIdAndUpdate(
+      taskId,
+      {
+        $set: { status: "In Progress" }, // Task ka status update karein
+        $push: { logs: newLogEntry } // 'logs' array mein naya log object daalein
+      },
+      { new: true } // Yeh option updated document ko return karta hai
+    );
 
-    // 💾 Save the task
-    await task.save();
-
-    res.status(200).json({ message: "Task accepted", task });
+    res.status(200).json({ message: "Task accepted", task: updatedTask });
   } catch (err) {
     console.error("Accept Task Error:", err);
     res.status(500).json({ message: "Failed to accept task" });
@@ -351,31 +364,44 @@ export const updateTask = async (req, res) => {
 
 export const deleteTask = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: "Task not found" });
+    const taskId = req.params.id;
+    const userId = req.user.id;
 
-    // 📝 Add log entry before deletion
-    if (!task.logs) task.logs = [];
+    // 1. Task ko find karein taaki hum uska title nikal sakein aur check kar sakein ki woh hai ya nahi.
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
 
-    task.logs.push({
+    const deleteLogEntry = {
       action: "Deleted",
-      by: req.user.id,
-      date: new Date(),
-      message: `${req.user.role} deleted the task.`
-    });
+      by: userId,
+      taskTitle: task.title,
+      remark: `${req.user.role} deleted the task.`,
+      date: new Date()
+    };
 
-    // Optional: You can save the log before deletion for record-keeping elsewhere (like audit collection)
-    await task.save();
+    await Task.findByIdAndUpdate(
+      taskId,
+      {
+        $set: {
+          isDeleted: true,
+          status: "Deleted"
+        },
+        $push: { logs: deleteLogEntry }
+      },
+      { new: true }
+    );
 
-    // 🗑️ Delete the task
-    await Task.findByIdAndDelete(req.params.id);
-
-    res.status(200).json({ message: "Task deleted" });
+    // 4. Response bhejein jo saaf bataye ki kya hua hai
+    res
+      .status(200)
+      .json({ message: "Task marked as deleted and activity logged." });
   } catch (err) {
     console.error("Delete Task Error:", err);
     res.status(500).json({ message: "Failed to delete task" });
   }
-};
+};  
 
 // controllers/taskController.js
 
@@ -428,7 +454,9 @@ export const reassignTask = async (req, res) => {
 
     // ✅ NEW: Validation - Check if reassigning to the same user
     if (task.assigned_to.toString() === newAssignee) {
-        return res.status(400).json({ message: "Task is already assigned to this user." });
+      return res
+        .status(400)
+        .json({ message: "Task is already assigned to this user." });
     }
 
     // 2. Find the new assignee
@@ -467,17 +495,20 @@ export const reassignTask = async (req, res) => {
       by: reassignerId,
       to: newAssignee, // <-- Yahan 'kise kiya' ki ID save ho rahi hai
       remark: remark || "", // <-- Remark ko alag se save karein
-      date: new Date(),
+      date: new Date()
     });
 
     // 8. Save the updated task
     await task.save();
 
     // 9. Send email to new assignee
-    await sendTaskAssignedEmail(newAssigneeUser.email, task.title, task.due_date);
+    await sendTaskAssignedEmail(
+      newAssigneeUser.email,
+      task.title,
+      task.due_date
+    );
 
     res.status(200).json({ message: "Task reassigned successfully" });
-
   } catch (err) {
     console.error("Reassign Task Error:", err);
     res.status(500).json({ message: "Failed to reassign task" });
@@ -788,58 +819,56 @@ export const reassignTaskByStaff = async (req, res) => {
 
 // ✅ UPDATED AND FIXED CONTROLLER
 
-
 export const getAllTaskLogs = async (req, res) => {
   try {
     // 1. Saare tasks find karein jinmein logs hain
-    const tasksWithLogs = await Task.find({ 'logs.0': { $exists: true } })
+    const tasksWithLogs = await Task.find({ "logs.0": { $exists: true } })
       // ✅ THE MAIN FIX - PART 1: 'taskId' ko bhi select karein
-      .select('title taskId logs') 
+      .select("title taskId logs")
       .populate({
-        path: 'logs',
+        path: "logs",
         populate: [
-            { path: 'by', select: 'name role' },
-            { path: 'to', select: 'name role' }
+          { path: "by", select: "name role" },
+          { path: "to", select: "name role" }
         ]
       });
 
     // 2. Saare logs ko ek single flat array mein daalein
     let allLogs = [];
-    tasksWithLogs.forEach(task => {
-        const logsWithTaskInfo = task.logs.map(log => ({
-            ...log.toObject(),
-            task: {
-                _id: task._id,
-                title: task.title,
-                // ✅ THE MAIN FIX - PART 2: 'taskId' ko har log ke saath jodein
-                taskId: task.taskId 
-            }
-        }));
-        allLogs = allLogs.concat(logsWithTaskInfo);
+    tasksWithLogs.forEach((task) => {
+      const logsWithTaskInfo = task.logs.map((log) => ({
+        ...log.toObject(),
+        task: {
+          _id: task._id,
+          title: task.title,
+          // ✅ THE MAIN FIX - PART 2: 'taskId' ko har log ke saath jodein
+          taskId: task.taskId
+        }
+      }));
+      allLogs = allLogs.concat(logsWithTaskInfo);
     });
 
     // 3. Poore array ko date se sort karein taaki sabse naye upar aayein
     allLogs.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     res.status(200).json({ logs: allLogs });
-
   } catch (err) {
     console.error("Failed to fetch all task logs:", err);
     res.status(500).json({ message: "Server error while fetching logs." });
   }
 };
 
-export const getCommentsForTask = (async (req, res) => {
+export const getCommentsForTask = async (req, res) => {
   const comments = await Comment.find({ task: req.params.taskId })
     .populate("user", "name role") // Populate user's name and role
     .sort({ createdAt: "asc" }); // Show oldest comments first
 
   res.status(200).json(comments);
-});
+};
 
 // ... imports
 
-export const addCommentToTask = (async (req, res) => {
+export const addCommentToTask = async (req, res) => {
   // express.json() middleware ki vajah se, ab req.body mein text milega
   const { text } = req.body;
   const { taskId } = req.params;
@@ -864,15 +893,17 @@ export const addCommentToTask = (async (req, res) => {
   const comment = await Comment.create({
     text: text,
     user: userId,
-    task: taskId,
+    task: taskId
   });
 
   // Task mein comment reference save karein
   task.comments.push(comment._id);
   await task.save();
-  
-  const populatedComment = await Comment.findById(comment._id).populate("user", "name email");
+
+  const populatedComment = await Comment.findById(comment._id).populate(
+    "user",
+    "name email"
+  );
 
   res.status(201).json(populatedComment);
-});
- 
+};

@@ -97,7 +97,7 @@ function TaskCommentsModal({ isOpen, onClose, task }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+    <div className="fixed inset-0 bg-[#0000007c] backdrop-blur-sm bg-opacity-60 z-50 flex justify-center items-center p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[75vh] flex flex-col">
         {/* Modal Header */}
         <div className="flex-shrink-0 flex justify-between items-center p-4 border-b">

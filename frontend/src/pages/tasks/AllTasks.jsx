@@ -16,7 +16,7 @@ import { DiamondPlus, BadgeAlert, CheckCircle } from "lucide-react";
 import Select from "react-select"; // If you use react-select, otherwise use a native select
 import RemarkModal from "./RemarkModal";
 import PageSkelton from "../../components/skeletons/PageSkeleton";
-import { MessageSquare,ChevronDown, ChevronUp,BellRing } from "lucide-react"; // Import a nice icon
+import { MessageSquare, ChevronDown, ChevronUp, BellRing } from "lucide-react"; // Import a nice icon
 import TaskCommentsModal from "../tasks/TaskCommentsModal";
 import { BiSolidBellRing } from "react-icons/bi";
 
@@ -49,9 +49,8 @@ const AllTasks = () => {
   const [selectedRemark, setSelectedRemark] = useState("");
   const [loading, setLoading] = useState(true);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
-    const [openSubtasks, setOpenSubtasks] = useState({}); // To track open subtask dropdowns
-    const [activeTab, setActiveTab] = useState("All");
-
+  const [openSubtasks, setOpenSubtasks] = useState({}); // To track open subtask dropdowns
+  const [activeTab, setActiveTab] = useState("All");
 
   const debouncedSearch = useCallback(
     debounce((value) => {
@@ -65,49 +64,51 @@ const AllTasks = () => {
     setFilters((prev) => ({ ...prev, status }));
 
   // Fetch tasks from backend
-// Fetch tasks from backend
-const fetchTasks = async () => {
-  try {
-    const params = { ...filters };
-    
-    // status "All" ka case handle
-    if (filters.status === "All") {
-      delete params.status;
+  // Fetch tasks from backend
+  const fetchTasks = async () => {
+    try {
+      const params = { ...filters };
+
+      // status "All" ka case handle
+      if (filters.status === "All") {
+        delete params.status;
+      }
+
+      if (assignedToFilter) params.assigned_to = assignedToFilter;
+      if (assignedByFilter) params.assigned_by = assignedByFilter;
+      if (clientFilter) params.client = clientFilter;
+
+      // Date filters
+      if (dateFilter === "7days") {
+        params.from = new Date(
+          Date.now() - 7 * 24 * 60 * 60 * 1000
+        ).toISOString();
+      }
+      if (dateFilter === "30days") {
+        params.from = new Date(
+          Date.now() - 30 * 24 * 60 * 60 * 1000
+        ).toISOString();
+      }
+
+      // ✅ Add recurring filter if tab is Recurring
+      if (filters.status === "Recurring") {
+        params.recurring = true; // string nahi, boolean
+        delete params.status; // status filter hata do warna conflict karega
+      }
+
+      console.log("Fetching tasks with params:", params);
+
+      const res = await axios.get("/assign/tasks", {
+        headers: { Authorization: `Bearer ${getToken()}` },
+        params
+      });
+
+      setTasks(res.data.tasks);
+      console.log(res.data);
+    } catch (err) {
+      console.error("Error loading tasks", err);
     }
-
-    if (assignedToFilter) params.assigned_to = assignedToFilter;
-    if (assignedByFilter) params.assigned_by = assignedByFilter;
-    if (clientFilter) params.client = clientFilter;
-
-    // Date filters
-    if (dateFilter === "7days") {
-      params.from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    }
-    if (dateFilter === "30days") {
-      params.from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    }
-
-    // ✅ Add recurring filter if tab is Recurring
-   if (filters.status === "Recurring") {
-  params.recurring = true; // string nahi, boolean
-  delete params.status;    // status filter hata do warna conflict karega
-}
-
-    console.log("Fetching tasks with params:", params);
-
-    const res = await axios.get("/assign/tasks", {
-      headers: { Authorization: `Bearer ${getToken()}` },
-      params
-    });
-
-    setTasks(res.data.tasks);
-    console.log(res.data);
-
-  } catch (err) {
-    console.error("Error loading tasks", err);
-  }
-};
-
+  };
 
   const statusBadgeColorMap = {
     Pending: "bg-red-100 text-red-700",
@@ -221,7 +222,7 @@ const fetchTasks = async () => {
   };
 
   const isExpired = (task) => {
-    return new Date(task.due_date) < new Date() && task.status !== "Completed";
+    return new Date(task.due_date) < new Date(0,0,0,0) && task.status !== "Completed";
   };
 
   // Filter users for dropdowns
@@ -312,17 +313,15 @@ const fetchTasks = async () => {
               "Expired",
               "Rejected",
               "Recurring"
-            ].map(
-              (status) => (
-                <button
-                  key={status}
-                  onClick={() => handleStatusChange(status)}
-                  className={`px-4 py-2 rounded-full border ${filters.status === status ? "bg-black text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                >
-                  {status}
-                </button>
-              )
-            )}
+            ].map((status) => (
+              <button
+                key={status}
+                onClick={() => handleStatusChange(status)}
+                className={`px-4 py-2 rounded-full border ${filters.status.toLowerCase() === status.toLowerCase()? "bg-black text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+              >
+                {status}
+              </button>
+            ))}
           </div>
 
           {/* Filters Row */}
@@ -503,33 +502,57 @@ const fetchTasks = async () => {
                       <div className="font-semibold text-base capitalize text-gray-800">
                         {task.title}
                       </div>
-                          {task.description && (
-                            <details className="mt-2 text-xs text-gray-500 cursor-pointer group">
-                                <summary className="outline-none select-none font-medium group-hover:underline">View Description</summary>
-                                <p className="mt-1 whitespace-pre-wrap border-l-2 border-gray-200 pl-2">
-                                    {task.description}
-                                </p>
-                            </details>
-                         )}
-                                      {/* ✅ NEW: Subtasks Section */}
+                      {task.description && (
+                        <details className="mt-2 text-xs text-gray-500 cursor-pointer group">
+                          <summary className="outline-none select-none font-medium group-hover:underline">
+                            View Description
+                          </summary>
+                          <p className="mt-1 whitespace-pre-wrap border-l-2 border-gray-200 pl-2">
+                            {task.description}
+                          </p>
+                        </details>
+                      )}
+                      {/* ✅ NEW: Subtasks Section */}
                       {task.subtasks && task.subtasks.length > 0 && (
-                        <details className="mt-3 group" onToggle={(e) => setOpenSubtasks({...openSubtasks, [task._id]: e.currentTarget.open })}>
+                        <details
+                          className="mt-3 group"
+                          onToggle={(e) =>
+                            setOpenSubtasks({
+                              ...openSubtasks,
+                              [task._id]: e.currentTarget.open
+                            })
+                          }
+                        >
                           <summary className="cursor-pointer text-xs font-semibold text-blue-600 flex items-center gap-1">
-                           {openSubtasks[task._id] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            View Subtasks ({task.subtasks.filter(st => st.status === 'Completed').length}/{task.subtasks.length})
+                            {openSubtasks[task._id] ? (
+                              <ChevronUp size={14} />
+                            ) : (
+                              <ChevronDown size={14} />
+                            )}
+                            View Subtasks (
+                            {
+                              task.subtasks.filter(
+                                (st) => st.status === "Completed"
+                              ).length
+                            }
+                            /{task.subtasks.length})
                           </summary>
                           <ul className="mt-2 space-y-2 pl-4 border-l-2 border-gray-200">
-                            {task.subtasks.map(subtask => (
-                              <li key={subtask._id} className="flex items-center gap-2">
-                                <span className={`text-sm ${subtask.status === 'Completed' ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                                    {subtask.title}
+                            {task.subtasks.map((subtask) => (
+                              <li
+                                key={subtask._id}
+                                className="flex items-center gap-2"
+                              >
+                                <span
+                                  className={`text-sm ${subtask.status === "Completed" ? "text-gray-400 line-through" : "text-gray-700"}`}
+                                >
+                                  {subtask.title}
                                 </span>
-                                      </li>
+                              </li>
                             ))}
                           </ul>
                         </details>
                       )}
-
                     </td>
 
                     {/* Assignee */}
@@ -554,7 +577,6 @@ const fetchTasks = async () => {
                         {task.priority}
                       </span>
 
-                    
                       {task.delayReason && (
                         <p className="text-sm text-gray-600">
                           Delay Reason: <strong>{task.delayReason}</strong>
@@ -654,9 +676,16 @@ const fetchTasks = async () => {
                           setSelectedTask(task); // Set the selected task
                           setShowCommentsModal(true); // Open the new comments modal
                         }}
-                        className="text-gray-700 hover:text-black"
+                        className="relative text-gray-700 hover:text-black"
                       >
                         <MessageSquare size={18} />
+
+                        {/* Badge - Show only if comments exist */}
+                        {task.comments?.length > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-green-400 text-white text-[10px] font-bold rounded-full px-0.5 py-0.1">
+                            {task.comments.length}
+                          </span>
+                        )}
                       </button>
                       <button
                         data-tooltip-id="tooltip"

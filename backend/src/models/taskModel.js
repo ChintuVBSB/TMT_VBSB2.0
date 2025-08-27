@@ -30,7 +30,8 @@ const taskSchema = new mongoose.Schema(
         "Completed",
         "Rejected",
         "Overdue",
-        "Remarked"
+        "Remarked",
+        "Expired"
       ],
       default: "Pending"
     },
@@ -53,11 +54,12 @@ const taskSchema = new mongoose.Schema(
       ref: "Client"
     },
 
-    comments: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Comment'
-    }],
-
+    comments: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Comment"
+      }
+    ],
 
     project_id: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
 
@@ -120,7 +122,13 @@ const taskSchema = new mongoose.Schema(
       type: Date
     },
 
-    // ✅ NEW: Action Logs
+     isDeleted: {
+          type: Boolean,
+          default: false,
+          index: true 
+        },
+
+ 
     logs: [
       {
         action: {
@@ -133,8 +141,14 @@ const taskSchema = new mongoose.Schema(
             "Completed",
             "Retry Requested",
             "Delayed",
-             "Reassigned by Staff",
+            "Deleted",
+            "Reassigned by Staff"
           ]
+        },
+
+       
+        taskTitle: {
+          type: String
         },
         by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         to: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

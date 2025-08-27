@@ -62,7 +62,9 @@ function StaffDashboard() {
         headers: { Authorization: `Bearer ${getToken()}` },
         params
       });
-        console.log("📦 API Response:", res.data);
+  console.log("tasks:", res.data.tasks);
+
+
       setTasks(res.data.tasks);
       setFilteredTasks(res.data.tasks);
     } catch (err) {
@@ -210,18 +212,18 @@ function StaffDashboard() {
     }
   };
 
-
-  const debouncedFilter = useMemo(
+const debouncedFilter = useMemo(
   () =>
     debounce((query) => {
       const filtered = tasks.filter((task) =>
-        task.title.toLowerCase().includes(query.toLowerCase()) ||
-        task.taskId?.toLowerCase().includes(query.toLowerCase())
+        (task.title && task.title.toLowerCase().includes(query.toLowerCase())) ||
+        (task.taskId && task.taskId.toLowerCase().includes(query.toLowerCase()))
       );
       setFilteredTasks(filtered);
     }, 300),
   [tasks]
 );
+
   
   useEffect(() => {
     if (search.trim() === "") {
@@ -232,6 +234,7 @@ function StaffDashboard() {
   }, [search, tasks, debouncedFilter]);
 
 
+  
   const filteredByTab = useMemo(() => {
     return filteredTasks.filter((task) => {
         if (activeTab === "To Do") return task.status === "Pending";
@@ -406,7 +409,8 @@ function StaffDashboard() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {filteredByTab.map((task) => {
-                  const isExpired = new Date(task.due_date) < new Date();
+                  const now = new Date();
+                  const isExpired = new Date(task.due_date) < now;
 
                   return (
                     <tr key={task._id} className="hover:bg-gray-50">
@@ -414,12 +418,12 @@ function StaffDashboard() {
                         {task.taskId || "---"}
                       </td>
                       <td className="px-4 py-4 capitalize align-top">
-                         <div className="font-medium text-gray-800">{task.title}</div>
+                         <div className="font-medium text-gray-800">{task.title || "Untitled"}</div>
                               {task.description && (
                             <details className="mt-2 text-xs text-gray-500 cursor-pointer group">
                                 <summary className="outline-none select-none font-medium group-hover:underline">View Description</summary>
                                 <p className="mt-1 whitespace-pre-wrap border-l-2 border-gray-200 pl-2">
-                                    {task.description}
+                                    {task.description || "No Description"}
                                 </p>
                             </details>
                          )}

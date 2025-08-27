@@ -19,7 +19,8 @@ export const addTimeLog = async (req, res) => {
       completion_date,
     } = req.body;
 
-    const userId = req.user.id;
+   const userId = mongoose.Types.ObjectId(req.user._id || req.user.id);
+
 
     // Convert to actual time objects
     const start = new Date(`1970-01-01T${start_time}:00`);

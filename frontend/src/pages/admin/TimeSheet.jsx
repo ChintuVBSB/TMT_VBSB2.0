@@ -49,6 +49,10 @@ function TimeSheet() {
     completionDate: ""
   });
 
+  // Add these states:
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isSubmittingLogs, setIsSubmittingLogs] = useState(false);
+
   useEffect(() => {
     fetchClients();
     fetchBuckets();
@@ -207,10 +211,12 @@ function TimeSheet() {
 
   const handleSaveDraft = async (e) => {
     e.preventDefault();
+    if (isSavingDraft) return; // Prevent double click
     if (!validateForm()) {
       toast.error("Please fill in all required fields correctly.");
       return;
     }
+    setIsSavingDraft(true);
     const log = {
       title: form.title,
       client: form.client,
@@ -249,14 +255,18 @@ function TimeSheet() {
       fetchDraftLogs();
     } catch (err) {
       toast.error("Error saving draft");
+    } finally {
+      setIsSavingDraft(false);
     }
   };
 
   const handleSubmitAllLogs = async () => {
+    if (isSubmittingLogs) return; // Prevent double click
     if (draftLogs.length === 0) {
       toast.error("There are no draft logs to submit.");
       return;
     }
+    setIsSubmittingLogs(true);
     try {
       await axios.patch(
         "/timelog/submit-all",
@@ -267,6 +277,8 @@ function TimeSheet() {
       fetchDraftLogs();
     } catch (err) {
       toast.error("Submission failed");
+    } finally {
+      setIsSubmittingLogs(false);
     }
   };
 
@@ -755,19 +767,20 @@ function TimeSheet() {
 
           <button
             type="submit"
-            className="col-span-1 sm:col-span-2 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-md font-semibold"
+            disabled={isSavingDraft}
+            className={`col-span-1 sm:col-span-2 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-md font-semibold ${isSavingDraft ? 'opacity-60 cursor-not-allowed' : ''}`}
           >
-            + Add to Drafts
+            {isSavingDraft ? "Saving..." : "+ Add to Drafts"}
           </button>
         </form>
 
         <div className="text-right mt-5 mb-6">
           <button
             onClick={handleSubmitAllLogs}
-            disabled={draftLogs.length === 0}
-            className="bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            disabled={draftLogs.length === 0 || isSubmittingLogs}
+            className={`bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed ${isSubmittingLogs ? 'opacity-60' : ''}`}
           >
-            Submit All Logs
+            {isSubmittingLogs ? "Submitting..." : "Submit All Logs"}
           </button>
         </div>
 

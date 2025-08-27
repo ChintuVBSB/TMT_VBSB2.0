@@ -53,7 +53,7 @@ const ManagerDashboard = () => {
 
   const handleAccept = async (taskId) => {
     try {
-      await axios.patch(`http://localhost:8000	/api/assign/tasks/accept/${taskId}`, {}, {
+      await axios.patch(`http://localhost:8000/api/assign/tasks/accept/${taskId}`, {}, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       fetchManagerData();
@@ -79,7 +79,7 @@ const ManagerDashboard = () => {
 
   const handleComplete = async (taskId) => {
     try {
-      await axios.patch(`http://localhost:8000/api/tasks/complete/${taskId}`, {}, {
+      await axios.patch(`http://localhost:8000/api/assign/tasks/complete/${taskId}`, {}, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       fetchManagerData();

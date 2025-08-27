@@ -12,6 +12,7 @@ import {
   Send,
   UserCheck,
 } from "lucide-react";
+import LogSkelton from "../components/skeletons/LogSkeleton"
 
 // A simple loading spinner component
 const Spinner = () => (
@@ -70,7 +71,7 @@ function AllTaskLogsView() {
         </h1>
 
         {loading ? (
-          <Spinner />
+          <LogSkelton/>
         ) : (
           // ✅ FIXED: Scrollable container for the log list
           <div className="max-h-[75vh] overflow-y-auto bg-white p-4 rounded-lg shadow-md border border-gray-200">
@@ -92,9 +93,13 @@ function AllTaskLogsView() {
                         {log.action}
                       </p>
                       
-                      <p className="text-sm text-gray-600 mt-1">
-                        Task: <span className="font-medium text-gray-900">{log.task?.title || "Untitled Task"}</span>
-                      </p>
+                     <p className="text-sm text-gray-600 mt-1">
+                      Task:{" "}
+                      {/* --- UPDATE 2: Deleted Task ko handle karne ka final logic --- */}
+                      <span className="font-medium text-gray-900">
+                        {log.task?.title || log.taskTitle || "Task (Deleted)"}
+                      </span>
+                    </p>
 
                       <p className="text-sm text-gray-500">
                         by <strong className="text-gray-700">{log.by?.name || "Unknown User"}</strong>
