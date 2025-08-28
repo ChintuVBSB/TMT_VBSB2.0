@@ -452,20 +452,127 @@ export const getTaskBucketReport = async (req, res) => {
 //   }
 // };
 
+// export const exportMISReport = async (req, res) => {
+//   try {
+//     const { from, to } = req.query;
+
+//     const fromDate = from ? new Date(from) : new Date("2000-01-01");
+//     const toDate = to ? new Date(to) : new Date();
+
+//     // Fetch logs with populate
+//     const logs = await timeLogModel.find({
+//       working_date: { $gte: fromDate, $lte: toDate }
+//     })
+//       .populate("user", "name")     
+//       .populate("client", "name")    
+//       .lean();
+
+//     // Workbook and sheet
+//     const workbook = new ExcelJS.Workbook();
+//     const sheet = workbook.addWorksheet("MIS Report");
+
+//     // Header row
+//     const headers = [
+//       "User Name",
+//       "Client Name",
+//       "Task Title",
+//       "Task Description",
+//       "Task Bucket",
+//       "Working Date",
+//       "Start Time",
+//       "End Time",
+//       "Total Minutes",
+//       "Completion Status"
+//     ];
+//     sheet.addRow(headers);
+
+//     // Style header
+//     sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+//     sheet.getRow(1).fill = {
+//       type: "pattern",
+//       pattern: "solid",
+//       fgColor: { argb: "4472C4" }
+//     };
+//     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
+
+//     // Data rows
+//     logs.forEach((log, index) => {
+//       const completionStatus = log.completion_date
+//         ? new Date(log.completion_date).toISOString().split("T")[0]
+//         : "Pending";
+
+//       const row = [
+//         log.user?.name || "Unknown",
+//         log.client?.name || "Unknown",
+//         log.task?.title || log.title || "",
+//         log.task_description || "",
+//         log.task_bucket || "N/A",
+//         log.working_date ? new Date(log.working_date).toISOString().split("T")[0] : "",
+//         log.start_time || "",
+//         log.end_time || "",
+//         log.total_minutes || 0,
+//         completionStatus
+//       ];
+
+//       const addedRow = sheet.addRow(row);
+
+//       // Alternate row shading
+//       if (index % 2 === 0) {
+//         addedRow.fill = {
+//           type: "pattern",
+//           pattern: "solid",
+//           fgColor: { argb: "F2F2F2" }
+//         };
+//       }
+//     });
+
+//     // Auto column width
+//     sheet.columns.forEach(col => {
+//       let maxLength = 15;
+//       col.eachCell({ includeEmpty: true }, cell => {
+//         const columnLength = cell.value ? cell.value.toString().length : 10;
+//         if (columnLength > maxLength) maxLength = columnLength;
+//       });
+//       col.width = maxLength < 30 ? maxLength : 30;
+//     });
+
+//     // Send file
+//     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+//     res.setHeader("Content-Disposition", "attachment; filename=MIS_Report.xlsx");
+
+//     await workbook.xlsx.write(res);
+//     res.end();
+
+//   } catch (err) {
+//     console.error("Excel Export Error:", err);
+//     res.status(500).json({ message: "Failed to export MIS Report" });
+//   }
+// };
+
 export const exportMISReport = async (req, res) => {
   try {
-    const { from, to } = req.query;
-
+    const { from, to, user } = req.query;
     const fromDate = from ? new Date(from) : new Date("2000-01-01");
     const toDate = to ? new Date(to) : new Date();
 
     // Fetch logs with populate
-    const logs = await timeLogModel.find({
-      working_date: { $gte: fromDate, $lte: toDate }
-    })
-      .populate("user", "name")     
-      .populate("client", "name")    
+    const query = {
+      working_date: { $gte: fromDate, $lte: toDate },
+    };
+    if (user) query.user = user;
+
+    const logs = await timeLogModel.find(query)
+      .populate("user", "name")
+      .populate("client", "name")
       .lean();
+
+    // Sort logs => user wise, date wise
+    logs.sort((a, b) => {
+      if (a.user?.name !== b.user?.name) {
+        return (a.user?.name || "").localeCompare(b.user?.name || "");
+      }
+      return new Date(a.working_date) - new Date(b.working_date);
+    });
 
     // Workbook and sheet
     const workbook = new ExcelJS.Workbook();
@@ -482,7 +589,7 @@ export const exportMISReport = async (req, res) => {
       "Start Time",
       "End Time",
       "Total Minutes",
-      "Completion Status"
+      "Completion Status",
     ];
     sheet.addRow(headers);
 
@@ -491,45 +598,100 @@ export const exportMISReport = async (req, res) => {
     sheet.getRow(1).fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: "4472C4" }
+      fgColor: { argb: "4472C4" },
     };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
 
-    // Data rows
+    // Data rows with totals
+    let currentUser = null;
+    let currentDate = null;
+    let dailyTotal = 0;
+
     logs.forEach((log, index) => {
+      const logUser = log.user?.name || "Unknown";
+      const logDate = log.working_date
+        ? new Date(log.working_date).toISOString().split("T")[0]
+        : "";
+
+      // Check if new group (user/date) started
+      if (currentUser !== null && (logUser !== currentUser || logDate !== currentDate)) {
+        // Insert total row for previous group
+        const totalRow = sheet.addRow([
+          currentUser,
+          "",
+          "",
+          "",
+          "",
+          currentDate,
+          "",
+          "TOTAL",
+          dailyTotal,
+          "",
+        ]);
+        totalRow.font = { bold: true };
+        totalRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "D9E1F2" } };
+
+        // Reset daily total
+        dailyTotal = 0;
+      }
+
+      currentUser = logUser;
+      currentDate = logDate;
+
       const completionStatus = log.completion_date
         ? new Date(log.completion_date).toISOString().split("T")[0]
         : "Pending";
 
       const row = [
-        log.user?.name || "Unknown",
+        logUser,
         log.client?.name || "Unknown",
         log.task?.title || log.title || "",
         log.task_description || "",
         log.task_bucket || "N/A",
-        log.working_date ? new Date(log.working_date).toISOString().split("T")[0] : "",
+        logDate,
         log.start_time || "",
         log.end_time || "",
         log.total_minutes || 0,
-        completionStatus
+        completionStatus,
       ];
+      sheet.addRow(row);
 
-      const addedRow = sheet.addRow(row);
+      // Add to total
+      dailyTotal += log.total_minutes || 0;
 
       // Alternate row shading
       if (index % 2 === 0) {
+        const addedRow = sheet.lastRow;
         addedRow.fill = {
           type: "pattern",
           pattern: "solid",
-          fgColor: { argb: "F2F2F2" }
+          fgColor: { argb: "F2F2F2" },
         };
       }
     });
 
+    // Final total row (for last group)
+    if (currentUser && currentDate) {
+      const totalRow = sheet.addRow([
+        currentUser,
+        "",
+        "",
+        "",
+        "",
+        currentDate,
+        "",
+        "TOTAL",
+        dailyTotal,
+        "",
+      ]);
+      totalRow.font = { bold: true };
+      totalRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "D9E1F2" } };
+    }
+
     // Auto column width
-    sheet.columns.forEach(col => {
+    sheet.columns.forEach((col) => {
       let maxLength = 15;
-      col.eachCell({ includeEmpty: true }, cell => {
+      col.eachCell({ includeEmpty: true }, (cell) => {
         const columnLength = cell.value ? cell.value.toString().length : 10;
         if (columnLength > maxLength) maxLength = columnLength;
       });
@@ -537,17 +699,160 @@ export const exportMISReport = async (req, res) => {
     });
 
     // Send file
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
     res.setHeader("Content-Disposition", "attachment; filename=MIS_Report.xlsx");
-
     await workbook.xlsx.write(res);
     res.end();
-
   } catch (err) {
-    console.error("Excel Export Error:", err);
-    res.status(500).json({ message: "Failed to export MIS Report" });
+    console.error("Error generating MIS report:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
+
+
+// export const exportWeeklySummaryCSV = async (req, res) => {
+//   try {
+//     const { from, to } = req.query;
+//     const fromDate = new Date(new Date(from).setHours(0, 0, 0, 0));
+//     const toDate = new Date(new Date(to).setHours(23, 59, 59, 999));
+
+//     // Fetch users
+//     const users = await User.find({ role: "staff" });
+
+//     const report = await Promise.all(
+//       users.map(async (user) => {
+//         const logs = await timeLogModel.find({
+//           user: user._id,
+//           working_date: { $gte: fromDate, $lte: toDate },
+//         });
+
+//         const totalMinutes = logs.reduce((acc, curr) => acc + curr.total_minutes, 0);
+
+//         // Group by task and client
+//         const taskTotals = {};
+//         const clientTotals = {};
+
+//         for (const log of logs) {
+//           const bucket = log.task_bucket || "N/A";
+//           taskTotals[bucket] = (taskTotals[bucket] || 0) + log.total_minutes;
+
+//           const clientName =
+//             typeof log.client === "string"
+//               ? log.client
+//               : (await Client.findById(log.client))?.name || "N/A";
+
+//           clientTotals[clientName] = (clientTotals[clientName] || 0) + log.total_minutes;
+//         }
+
+//         const majorTask = Object.entries(taskTotals).sort((a, b) => b[1] - a[1])[0] || ["N/A", 0];
+//         const majorClient = Object.entries(clientTotals).sort((a, b) => b[1] - a[1])[0] || ["N/A", 0];
+
+//         return {
+//           name: user.name,
+//           period: `${from} to ${to}`,
+//           days: 6,
+//           expected_worked_hours: 42.5,
+//           worked_hours: (totalMinutes / 60).toFixed(2),
+//           major_task: majorTask[0],
+//           major_task_time: (majorTask[1] / 60).toFixed(2),
+//           major_client: majorClient[0],
+//           major_client_time: (majorClient[1] / 60).toFixed(2),
+//         };
+//       })
+//     );
+
+//     // Create workbook
+//     const workbook = new ExcelJS.Workbook();
+//     const sheet = workbook.addWorksheet("Weekly Summary");
+
+//     // Headers
+//     const headers = [
+//       "User Name",
+//       "Period",
+//       "Days",
+//       "Expected Hours",
+//       "Worked Hours",
+//       "Major Task",
+//       "Task Time (hrs)",
+//       "Major Client",
+//       "Client Time (hrs)",
+//     ];
+//     sheet.addRow(headers);
+
+//     // Style headers
+//     sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+//     sheet.getRow(1).fill = {
+//       type: "pattern",
+//       pattern: "solid",
+//       fgColor: { argb: "305496" }, // dark blue
+//     };
+//     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
+
+//     // Data rows
+//     report.forEach((r, index) => {
+//       const row = [
+//         r.name,
+//         r.period,
+//         r.days,
+//         r.expected_worked_hours,
+//         r.worked_hours,
+//         r.major_task,
+//         r.major_task_time,
+//         r.major_client,
+//         r.major_client_time,
+//       ];
+
+//       const addedRow = sheet.addRow(row);
+
+//       // Alternate shading
+//       if (index % 2 === 0) {
+//         addedRow.fill = {
+//           type: "pattern",
+//           pattern: "solid",
+//           fgColor: { argb: "F2F2F2" }, // light gray
+//         };
+//       }
+//     });
+
+//     // Auto width
+//     sheet.columns.forEach((col) => {
+//       let maxLength = 15;
+//       col.eachCell({ includeEmpty: true }, (cell) => {
+//         const columnLength = cell.value ? cell.value.toString().length : 10;
+//         if (columnLength > maxLength) maxLength = columnLength;
+//       });
+//       col.width = maxLength < 40 ? maxLength : 40;
+//     });
+
+//     // Borders
+//     sheet.eachRow({ includeEmpty: false }, (row) => {
+//       row.eachCell((cell) => {
+//         cell.border = {
+//           top: { style: "thin" },
+//           left: { style: "thin" },
+//           bottom: { style: "thin" },
+//           right: { style: "thin" },
+//         };
+//       });
+//     });
+
+//     // Send file
+//     res.setHeader(
+//       "Content-Type",
+//       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+//     );
+//     res.setHeader("Content-Disposition", `attachment; filename=Weekly_Summary_${from}_to_${to}.xlsx`);
+
+//     await workbook.xlsx.write(res);
+//     res.end();
+//   } catch (err) {
+//     console.error("Excel Export Error:", err);
+//     res.status(500).json({ message: "Failed to export Weekly Summary" });
+//   }
+// };
 
 
 export const exportWeeklySummaryCSV = async (req, res) => {
@@ -568,35 +873,37 @@ export const exportWeeklySummaryCSV = async (req, res) => {
 
         const totalMinutes = logs.reduce((acc, curr) => acc + curr.total_minutes, 0);
 
-        // Group by task and client
-        const taskTotals = {};
-        const clientTotals = {};
-
+        // Group by task
+        const tasks = {};
         for (const log of logs) {
           const bucket = log.task_bucket || "N/A";
-          taskTotals[bucket] = (taskTotals[bucket] || 0) + log.total_minutes;
+          tasks[bucket] = (tasks[bucket] || 0) + log.total_minutes;
+        }
+        const sortedTasks = Object.entries(tasks)
+          .sort((a, b) => b[1] - a[1]) // Sort by time spent, descending
+          .map(([taskName, minutes]) => ({ name: taskName, time: (minutes / 60).toFixed(2) }));
 
+        // Group by client
+        const clients = {};
+        for (const log of logs) {
           const clientName =
             typeof log.client === "string"
               ? log.client
               : (await Client.findById(log.client))?.name || "N/A";
-
-          clientTotals[clientName] = (clientTotals[clientName] || 0) + log.total_minutes;
+          clients[clientName] = (clients[clientName] || 0) + log.total_minutes;
         }
-
-        const majorTask = Object.entries(taskTotals).sort((a, b) => b[1] - a[1])[0] || ["N/A", 0];
-        const majorClient = Object.entries(clientTotals).sort((a, b) => b[1] - a[1])[0] || ["N/A", 0];
+        const sortedClients = Object.entries(clients)
+          .sort((a, b) => b[1] - a[1]) // Sort by time spent, descending
+          .map(([clientName, minutes]) => ({ name: clientName, time: (minutes / 60).toFixed(2) }));
 
         return {
           name: user.name,
           period: `${from} to ${to}`,
-          days: 6,
-          expected_worked_hours: 42.5,
+          days: 6, // Assuming 6 working days
+          expected_worked_hours: 42.5, // Your fixed expected hours
           worked_hours: (totalMinutes / 60).toFixed(2),
-          major_task: majorTask[0],
-          major_task_time: (majorTask[1] / 60).toFixed(2),
-          major_client: majorClient[0],
-          major_client_time: (majorClient[1] / 60).toFixed(2),
+          tasks: sortedTasks,
+          clients: sortedClients,
         };
       })
     );
@@ -609,13 +916,13 @@ export const exportWeeklySummaryCSV = async (req, res) => {
     const headers = [
       "User Name",
       "Period",
-      "Days",
+      "No. of Working Days",
       "Expected Hours",
-      "Worked Hours",
-      "Major Task",
-      "Task Time (hrs)",
-      "Major Client",
-      "Client Time (hrs)",
+      "Total Working Hours",
+      "Major Task", // Renamed to "Major Task" but will contain all
+      "Time",
+      "Major Client", // Renamed to "Major Client" but will contain all
+      "Time",
     ];
     sheet.addRow(headers);
 
@@ -628,29 +935,63 @@ export const exportWeeklySummaryCSV = async (req, res) => {
     };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
 
+    let currentRow = 2; // Start data from row 2
+
     // Data rows
-    report.forEach((r, index) => {
-      const row = [
-        r.name,
-        r.period,
-        r.days,
-        r.expected_worked_hours,
-        r.worked_hours,
-        r.major_task,
-        r.major_task_time,
-        r.major_client,
-        r.major_client_time,
-      ];
+    report.forEach((r) => {
+      const maxRowsForUser = Math.max(r.tasks.length, r.clients.length, 1); // Ensure at least one row per user
 
-      const addedRow = sheet.addRow(row);
+      for (let i = 0; i < maxRowsForUser; i++) {
+        const rowData = [];
 
-      // Alternate shading
-      if (index % 2 === 0) {
-        addedRow.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "F2F2F2" }, // light gray
-        };
+        // For the first row of each user, add general user info and total hours
+        if (i === 0) {
+          rowData.push(r.name);
+          rowData.push(r.period);
+          rowData.push(r.days);
+          rowData.push(r.expected_worked_hours);
+          rowData.push(r.worked_hours);
+        } else {
+          // For subsequent rows, leave these cells empty to be merged later
+          rowData.push("", "", "", "", "");
+        }
+
+        // Add task data
+        if (r.tasks[i]) {
+          rowData.push(r.tasks[i].name);
+          rowData.push(r.tasks[i].time);
+        } else {
+          rowData.push("", ""); // Empty if no more tasks
+        }
+
+        // Add client data
+        if (r.clients[i]) {
+          rowData.push(r.clients[i].name);
+          rowData.push(r.clients[i].time);
+        } else {
+          rowData.push("", ""); // Empty if no more clients
+        }
+
+        sheet.addRow(rowData);
+
+        // Apply alternate shading
+        if ((currentRow - 2) % 2 === 0) { // -2 because currentRow starts at 2
+            sheet.getRow(currentRow).fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "F2F2F2" }, // light gray
+            };
+        }
+        currentRow++;
+      }
+
+      // Merge cells for user info if there were multiple rows for tasks/clients
+      if (maxRowsForUser > 1) {
+        sheet.mergeCells(`A${currentRow - maxRowsForUser}:A${currentRow - 1}`); // User Name
+        sheet.mergeCells(`B${currentRow - maxRowsForUser}:B${currentRow - 1}`); // Period
+        sheet.mergeCells(`C${currentRow - maxRowsForUser}:C${currentRow - 1}`); // No. of Working Days
+        sheet.mergeCells(`D${currentRow - maxRowsForUser}:D${currentRow - 1}`); // Expected Hours
+        sheet.mergeCells(`E${currentRow - maxRowsForUser}:E${currentRow - 1}`); // Total Working Hours
       }
     });
 
@@ -676,6 +1017,17 @@ export const exportWeeklySummaryCSV = async (req, res) => {
       });
     });
 
+    // Center alignment for merged cells (if desired, this can be tricky with ExcelJS)
+    // You might need to iterate through the merged cells after merging
+    sheet.eachRow((row) => {
+        row.eachCell((cell) => {
+            if (cell.isMerged) {
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            }
+        });
+    });
+
+
     // Send file
     res.setHeader(
       "Content-Type",
@@ -690,7 +1042,5 @@ export const exportWeeklySummaryCSV = async (req, res) => {
     res.status(500).json({ message: "Failed to export Weekly Summary" });
   }
 };
-
-
 
  
