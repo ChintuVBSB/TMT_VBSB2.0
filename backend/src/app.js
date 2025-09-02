@@ -41,6 +41,7 @@ app.use(helmet({
 app.use(compression());  // 🚀 Speed  
 
 // ✅ ALL ROUTES
+app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/user", UserRoutes);
 app.use("/api/timelog", timeLogRoutes);
