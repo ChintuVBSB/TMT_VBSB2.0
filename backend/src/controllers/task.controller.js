@@ -6,6 +6,8 @@ import moment from "moment";
 import { getOnlineUsers, getIO } from "../../utils/socketStore.js";
 import { generateTaskSerialNumber } from "../helpers/generateSerial.js";
 import Comment from "../models/comment.js";
+import Notification from "../models/Notification.js"
+
 
 export const createTask = async (req, res) => {
   try {
@@ -720,28 +722,40 @@ export const updateTaskStatus = async (req, res) => {
 
 // controllers/taskController.js
 
+// controllers/notificationController.js (or modify your existing sendTaskReminder)
+
+
 export const sendTaskReminder = async (req, res) => {
   try {
-    const { taskId, staffId } = req.body;
+    const { taskId, staffId, message = "Reminder (•_•)" } = req.body; // Default message
 
-    const onlineUsers = getOnlineUsers(); // 🧠 Map() instance
+    // 1. Create and save the notification in the database
+    const newNotification = new Notification({
+      recipient: staffId,
+      task: taskId,
+      message: message,
+      // sentAt will default to Date.now
+      // isRead will default to false
+    });
+    await newNotification.save();
+
+    // 2. (Optional but recommended for online users) Use Socket.IO for immediate notification
+    // If the user IS online, send a real-time notification as well
+    const onlineUsers = getOnlineUsers(); // Your existing Map for online users
     const socketId = onlineUsers.get(staffId);
 
-    console.log("📡 Sending reminder to:", staffId);
-    console.log("🧾 Online users map:", Array.from(onlineUsers.entries()));
-
-    if (!socketId) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not online" });
+    if (socketId) {
+      getIO().to(socketId).emit("task:reminder", {
+        message: newNotification.message, // Send the message from DB
+        taskId: newNotification.task,
+        notificationId: newNotification._id // Send notification ID for marking as read
+      });
+      console.log("📡 Real-time reminder sent to:", staffId);
+    } else {
+      console.log("🚶‍♂️ User not online, notification saved to DB for later.");
     }
 
-    getIO().to(socketId).emit("task:reminder", {
-      message: "🔔 You have a task due today!",
-      taskId
-    });
-
-    return res.json({ success: true, message: "Reminder sent" });
+    return res.json({ success: true, message: "Reminder sent and stored." });
   } catch (err) {
     console.error("❌ Error sending reminder:", err);
     return res.status(500).json({ success: false, message: "Server error" });

@@ -4,7 +4,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 
 const localizer = momentLocalizer(moment);
 
-const CalendarView = ({ allTasks = [] }) => {
+const AdminCalander = ({ allTasks = [] }) => {
   // Ensure every task has a valid date
   const events = allTasks
     .filter((task) => task.dueDate || task.createdAt)
@@ -39,4 +39,4 @@ const CalendarView = ({ allTasks = [] }) => {
   );
 };
 
-export default CalendarView;  
+export default AdminCalander;  

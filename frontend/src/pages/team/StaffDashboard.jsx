@@ -22,6 +22,7 @@ import socket from "../../socket";
 import PageSkelton from "../../components/skeletons/PageSkeleton"
 import StaffTimeLogFilter from "./StaffTimeLogFilter";
 import TaskCommentsModal from "../tasks/TaskCommentsModal";
+import NotificationDisplay from "../../components/NotificationDisplay";
 
 
 function StaffDashboard() {
@@ -356,7 +357,8 @@ const debouncedFilter = useMemo(
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <div className="flex flex-wrap gap-4 sm:gap-8 mb-6 text-sm sm:text-base font-semibold text-gray-700 border-b border-gray-200">
+          <NotificationDisplay/>
+        <div className="flex flex-wrap mt-5 gap-4 sm:gap-8 mb-6 text-sm sm:text-base font-semibold text-gray-700 border-b border-gray-200">
           {["To Do", "In Progress", "Completed"].map((tab) => (
             <button
               key={tab}

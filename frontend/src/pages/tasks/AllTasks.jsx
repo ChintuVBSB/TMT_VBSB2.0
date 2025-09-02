@@ -661,7 +661,7 @@ const AllTasks = () => {
                             "👉 Sending reminder to",
                             task.assigned_to?.name,
                             "for task",
-                            task._id
+                            task.id || task._id
                           );
                           sendReminder(task._id, task.assigned_to._id);
                         }}

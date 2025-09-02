@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ["admin", "manager", "staff", "client"],
+    enum: ["admin", "manager", "staff", "client","read_only"],
     default: "read_only"
   },
   photo: { type: String, default: "https://www.freepik.com/free-photos-vectors/no-profile" },
@@ -30,6 +30,8 @@ const userSchema = new mongoose.Schema({
     default: "active"
   },
 
+    googleAccessToken: { type: String },
+  googleRefreshToken: { type: String },
   
 
   otp: String,
@@ -41,7 +43,7 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.models.User || mongoose.model("User", userSchema);
 
 export default User;
 

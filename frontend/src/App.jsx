@@ -37,9 +37,15 @@ import TimeSheet from '../src/pages/admin/TimeSheet'
 import AdminTaskListTable from "./components/AdminTaskListTable";
 import AllTaskLogsView from "./components/AllTaskLogsView";
 import ManagerMyTasks from "./pages/manager/ManagerMyTasks";
+import { useEffect } from "react";
+import StaffTasksReport from "./components/MyTaskReport";
+import CalendarView from "./components/CalendarView";
+import AdminCalander from "./pages/AdminCalander";
 
 
 const App = () => {
+
+
   return (
     <>
       <BrowserRouter>
@@ -88,6 +94,15 @@ const App = () => {
             element={
               <ProtectedRoute allowedRoles={["admin", "manager"]}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+           <Route
+            path="/admin/dashboard/calendar"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "manager"]}>
+                 <AdminCalander/>
               </ProtectedRoute>
             }
           />

@@ -17,6 +17,7 @@ import chatRoutes from "../src/routes/chatRoutes.js";
 import taskRoutes from "../src/routes/task.routes.js";  // ✅ Corrected path
 import helmet from "helmet"
 import compression from "compression"
+import NotificationRoutes from "../src/routes/Notification.routes.js"
 
 dotenv.config();
 
@@ -39,6 +40,8 @@ app.use(helmet({
   crossOriginResourcePolicy: false, // 👈 disables the blocking header
 }));  // 🛡 Security
 app.use(compression());  // 🚀 Speed  
+ 
+
 
 // ✅ ALL ROUTES
 app.use("/api/auth", authRoutes);
@@ -53,7 +56,7 @@ app.use("/api/admin/projects", adminProjectRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/assign", taskRoutes); // ✅ This contains /tasks/my etc.
 app.use("/uploads", express.static("uploads"));
-
+app.use('/api/notifications', NotificationRoutes); 
 
  
 

@@ -9,6 +9,8 @@ import ReportFilter from '../../components/ReportFilter';
 import MISExport from './dashboard-widgets/MISExports';
 import WeeklySummaryDownload from './dashboard-widgets/WeeklySummaryDownload';
 import AdminNavbar from '../../components/navbars/AdminNavbar';
+import StaffTasksReport from '../../components/MyTaskReport';
+import MyTaskReport from '../../components/MyTaskReport';
 // import StaffWorkloadWidget from '../../components/StaffWorkloadWidget';
 
 const AdminDashboard = () => {
@@ -27,6 +29,7 @@ const AdminDashboard = () => {
         <ReportFilter onFilterChange={setFilters} />
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 my-4">
           <MISExport filters={filters} />
+          <MyTaskReport/>
           <WeeklySummaryDownload />
         </div>
 

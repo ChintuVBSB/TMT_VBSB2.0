@@ -11,7 +11,11 @@ export const getStaffReport = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const tasks = await Task.find({ assigned_to: userId });
+    // Populate assigned_by, assigned_to, and client
+    const tasks = await Task.find({ assigned_to: userId })
+      .populate("assigned_by", "name email") // only name and email
+      .populate("assigned_to", "name email")
+      .populate("client", "name");
 
     const statusCount = {
       completed: 0,
@@ -27,25 +31,21 @@ export const getStaffReport = async (req, res) => {
     tasks.forEach(task => {
       const status = (task.status || "").toLowerCase();
 
-      // Status Counter
       if (status === "completed") statusCount.completed++;
       else if (status === "pending" || status === "in progress") statusCount.pending++;
-
-      // Recurring = task not yet accepted (still To Do)
       if (status === "to do" || status === "todo") statusCount.recurring++;
 
-      // Weekly (by day name)
+      // Weekly chart
       const day = new Date(task.createdAt).toLocaleDateString("en-US", { weekday: "short" });
       weeklyMap[day] = (weeklyMap[day] || 0) + 1;
 
-      // 🗓 Monthly (by Week number)
+      // Monthly chart (by week)
       const created = new Date(task.createdAt);
-      const weekNum = Math.ceil(created.getDate() / 7); // 1–4
+      const weekNum = Math.ceil(created.getDate() / 7); 
       const key = `Week ${weekNum}`;
       monthlyMap[key] = (monthlyMap[key] || 0) + 1;
     });
 
-    // Convert maps to arrays
     const weeklyChart = Object.entries(weeklyMap).map(([day, count]) => ({ day, count }));
     const monthlyChart = Object.entries(monthlyMap).map(([week, count]) => ({ week, count }));
 
@@ -53,7 +53,22 @@ export const getStaffReport = async (req, res) => {
       statusCount,
       weeklyChart,
       monthlyChart,
-      total: tasks.length
+      total: tasks.length,
+      tasks: tasks.map(task => ({
+        _id: task._id,
+        taskId: task.taskId,
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        due_date: task.due_date,
+        assigned_by: task.assigned_by,
+        assigned_to: task.assigned_to,
+        client: task.client,
+        status: task.status,
+        completedAt: task.logs.find(log => log.action.toLowerCase() === "completed")?.date || null,
+        recurring: task.recurring,
+        recurringFrequency: task.recurringFrequency,
+      }))
     });
 
   } catch (err) {
@@ -61,6 +76,7 @@ export const getStaffReport = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch staff report" });
   }
 };
+
 
  
 //Admin dashboard controllers

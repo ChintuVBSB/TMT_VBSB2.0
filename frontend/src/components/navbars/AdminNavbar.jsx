@@ -33,7 +33,8 @@ const AdminNavbar = () => {
     { label: "Time Sheet", path: "/admin/manager/timesheet" },
     { label: "Task List", path: "/admin/alltasklist" },
     { label: "Activity Logs", path: "/admin/activity-logs" },
-    { label: "My Tasks", path: "/my-tasks" }
+    { label: "My Tasks", path: "/my-tasks" },
+    // {label: "My calendar", path: "/my-calendar"}
   ];
 
   return (

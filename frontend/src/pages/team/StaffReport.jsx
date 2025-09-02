@@ -63,22 +63,55 @@ function StaffReport() {
     pdf.save("task_report.pdf");
   };
 
-  const handleExportCSV = () => {
-    const rows = [
-      ["Task Type", "Count"],
-      ["Completed", report.statusCount.completed],
-      ["Pending", report.statusCount.pending],
-      ["Recurring", report.statusCount.recurring],
-    ];
-    const csvContent =
-      "data:text/csv;charset=utf-8," + rows.map((e) => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "task_report.csv");
-    document.body.appendChild(link);
-    link.click();
-  };
+const handleExportCSV = () => {
+  if (!report.tasks || report.tasks.length === 0) return;
+
+  // CSV header
+  const rows = [
+    [
+      "Task ID",
+      "Title",
+      "Description",
+      "Status",
+      "Priority",
+      "Assigned By",
+      "Assigned To",
+      "Client",
+      "Due Date",
+      "Recurring",
+      "Recurring Frequency",
+      "Completed At",
+      "Mark complete"
+    ],
+    // Map each task to a CSV row
+    ...report.tasks.map((task) => [
+      task.taskId || task._id,
+      task.title,
+      task.description,
+      task.status,
+      task.priority,
+      task.assigned_by?.name,
+      task.assigned_to?.name || "-",
+      task.client?.name,
+      task.due_date ? new Date(task.due_date).toLocaleDateString() : "-",
+      task.recurring ? "Yes" : "No",
+      task.recurringFrequency || "-",
+      task.completedAt ? new Date(task.completedAt).toLocaleString() : "Pending",
+    ]),
+  ];
+
+  // Convert to CSV string
+  const csvContent =
+    "data:text/csv;charset=utf-8," + rows.map((e) => e.join(",")).join("\n");
+
+  // Download CSV
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", "staff_tasks_report.csv");
+  document.body.appendChild(link);
+  link.click();
+};
 
   useEffect(() => {
     fetchReport();

@@ -4,6 +4,9 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import app from "./src/app.js";
 import { initSocket } from "./src/socket/socket.js"; // ✅ Correct import
+import recurringTaskCron from './src/cron/recurringTaskCron.js'
+recurringTaskCron()
+
 
 dotenv.config();
 
