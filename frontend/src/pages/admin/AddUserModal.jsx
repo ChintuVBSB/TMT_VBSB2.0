@@ -9,7 +9,7 @@ function AddUserModal({ existingUser, onClose, onUserAdded }) {
     name: "",
     email: "",
     password: "",
-    role: "user",
+    role: "user"
   });
 
   const [loading, setLoading] = useState(false); // 👈 loader state
@@ -22,7 +22,7 @@ function AddUserModal({ existingUser, onClose, onUserAdded }) {
         name: existingUser.name || "",
         email: existingUser.email || "",
         password: "",
-        role: existingUser.role || "user",
+        role: existingUser.role || "user"
       });
     }
   }, [existingUser]);
@@ -44,12 +44,12 @@ function AddUserModal({ existingUser, onClose, onUserAdded }) {
     try {
       if (existingUser) {
         await axios.patch(`/user/${existingUser._id}`, form, {
-          headers: { Authorization: `Bearer ${getToken()}` },
+          headers: { Authorization: `Bearer ${getToken()}` }
         });
         toast.success("User updated successfully!");
       } else {
         await axios.post("/user/register", form, {
-          headers: { Authorization: `Bearer ${getToken()}` },
+          headers: { Authorization: `Bearer ${getToken()}` }
         });
         toast.success("User created successfully!");
       }
@@ -58,7 +58,8 @@ function AddUserModal({ existingUser, onClose, onUserAdded }) {
       handleClose();
     } catch (err) {
       console.error("User save failed", err);
-      toast.error("Failed to save user.");
+      const msg = err.response?.data?.message || "Something went wrong!";
+      toast.error(msg);
     } finally {
       setLoading(false); // 👈 stop loader
     }
@@ -135,8 +136,10 @@ function AddUserModal({ existingUser, onClose, onUserAdded }) {
                 <>
                   <Loader /> {existingUser ? "Updating..." : ""}
                 </>
+              ) : existingUser ? (
+                "Update"
               ) : (
-                existingUser ? "Update" : "Create"
+                "Create"
               )}
             </button>
           </div>

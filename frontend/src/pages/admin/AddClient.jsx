@@ -97,7 +97,8 @@ function AddClient() {
       setGroupId(""); // ✅ CHANGE: Dropdown ko reset kiya
       fetchClients();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Error adding client");
+       const msg = err.response?.data?.message || "Something went wrong!";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

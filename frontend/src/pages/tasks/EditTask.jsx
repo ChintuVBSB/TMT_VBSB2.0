@@ -14,7 +14,6 @@ const EditTask = () => {
     priority: "Low",
     due_date: "",
     service_type: "",
-    tags: "",
   });
 
   useEffect(() => {
@@ -29,7 +28,6 @@ const EditTask = () => {
         priority: task.priority,
         due_date: task.due_date?.split("T")[0],
         service_type: task.service_type,
-        tags: task.tags.join(", "),
       });
     };
     fetchTask();
@@ -37,7 +35,7 @@ const EditTask = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = { ...formData, tags: formData.tags.split(",").map(t => t.trim()) };
+    const payload = { ...formData };
 
     await axios.patch(`/assign/tasks/${id}`, payload, {
       headers: { Authorization: `Bearer ${getToken()}` },
@@ -61,7 +59,6 @@ const EditTask = () => {
       </select>
       <input type="date" value={formData.due_date} onChange={(e) => setFormData({ ...formData, due_date: e.target.value })} className="w-full border px-3 py-2" />
       <input value={formData.service_type} onChange={(e) => setFormData({ ...formData, service_type: e.target.value })} className="w-full border px-3 py-2" />
-      <input value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} className="w-full border px-3 py-2" placeholder="tags" />
       <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">Update Task</button>
     </form>
     </>

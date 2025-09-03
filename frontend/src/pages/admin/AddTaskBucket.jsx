@@ -53,7 +53,8 @@ function AddTaskBucket() {
       setTitle("");
       fetchBuckets();
     } catch (err) {
-      toast.error("Error adding task bucket");
+       const msg = err.response?.data?.message || "Something went wrong!";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

@@ -114,16 +114,21 @@ export const getAllTasks = async (req, res) => {
     } = req.query;
     const query = {};
 
+    // Only one status filter should apply
     if (status) {
       if (status === "recurring") {
-        query.recurring = true; // ✅ ab sirf recurring:true wale hi aayenge
+        query.recurring = true;
       } else {
-        query.status = status; // ✅ normal status filter
+        query.status = status;
       }
     }
-    if (status) query.status = status;
-    if (priority) query.priority = priority;
 
+    // If you want to allow recurring filter separately (not via status param)
+    if (recurring === "true" || recurring === true) {
+      query.recurring = true;
+    }
+
+    if (priority) query.priority = priority;
     if (assigned_to) query.assigned_to = assigned_to;
     if (assigned_by) query.assigned_by = assigned_by;
     if (client) query.client = client;
@@ -139,7 +144,7 @@ export const getAllTasks = async (req, res) => {
         { title: searchRegex },
         { tags: searchRegex },
         { description: searchRegex },
-        { taskId: searchRegex } // ✅ Now even serial no. is searchable!
+        { taskId: searchRegex }
       ];
     }
 

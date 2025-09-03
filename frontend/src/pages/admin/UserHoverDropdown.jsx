@@ -27,11 +27,13 @@ const UserHoverDropdown = () => {
     refreshUser();
   }, []);
 
+  
   const handleLogout = () => {
     removeToken();
     navigate("/");
+    window.location.reload();
   };
-
+ 
   return (
     <div
       className="relative inline-block text-left z-50"

@@ -13,7 +13,7 @@ function ReassignTaskModal({ task, onClose }) {
     const fetchStaff = async () => {
       try {
         const res = await axios.get("/user?role=staff", {
-          headers: { Authorization: `Bearer ${getToken()}` },
+          headers: { Authorization: `Bearer ${getToken()}` }
         });
         setStaffList(res.data.users || []);
       } catch (error) {
@@ -32,14 +32,14 @@ function ReassignTaskModal({ task, onClose }) {
         `/assign/reassign/${taskId}`,
         { newAssignee: selectedStaff, remark },
         {
-          headers: { Authorization: `Bearer ${getToken()}` },
+          headers: { Authorization: `Bearer ${getToken()}` }
         }
       );
-      toast.success("Task reassigned!");
+      toast.success(res.data.message);
       onClose();
     } catch (err) {
-      toast.error("Failed to reassign task");
-      console.error(err);
+      const msg = err.response?.data?.message || "Something went wrong!";
+      toast.error(msg);
     }
   };
 

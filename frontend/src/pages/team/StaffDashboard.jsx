@@ -71,7 +71,7 @@ function StaffDashboard() {
     } catch (err) {
       console.error("Error fetching tasks", err);
       toast.error("Failed to fetch tasks.");
-    } finally {
+    } finally { 
       setLoading(false);
     }
   };
