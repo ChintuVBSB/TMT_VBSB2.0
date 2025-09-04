@@ -1,8 +1,8 @@
 // src/socket.js
 import { io } from "socket.io-client";
 
-// ✅ Use your backend URL
-const socket = io("http://localhost:8000/api", {
+// The socket URL is set dynamically via an env variable
+const socket = io(import.meta.env.VITE_SOCKET_URL, {
   transports: ["websocket"],
   autoConnect: true,
 });

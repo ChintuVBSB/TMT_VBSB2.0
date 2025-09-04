@@ -23,11 +23,7 @@ dotenv.config();
 
 const app = express();
 
-// app.use(cors({
-//   origin: ["http://localhost:5173", "https://vbsbtmt.netlify.app"],
-//   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-//   credentials: true
-// }));
+
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
