@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../../services/api';
 import { Repeat, MessageSquare, Kanban, List } from 'lucide-react';
 
 import TaskCommentsModal from '../tasks/TaskCommentsModal';
@@ -37,7 +37,7 @@ const ManagerDashboard = () => {
     }
 
     try {
-      const res = await axios.get('http://localhost:8000/api/assign/tasks/my', {
+      const res = await axios.get('/assign/tasks/my', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -53,7 +53,7 @@ const ManagerDashboard = () => {
 
   const handleAccept = async (taskId) => {
     try {
-      await axios.patch(`http://localhost:8000/api/assign/tasks/accept/${taskId}`, {}, {
+      await axios.patch(`/assign/tasks/accept/${taskId}`, {}, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       fetchManagerData();
@@ -64,7 +64,7 @@ const ManagerDashboard = () => {
 
   const fetchUser = async () => {
 	  try {
-		const res = await axios.get("http://localhost:8000/api/auth/profile", {
+		const res = await axios.get("/auth/profile", {
 		  headers: { Authorization: `Bearer ${getToken()}` }
 		});
 		setUser(res.data);
@@ -79,7 +79,7 @@ const ManagerDashboard = () => {
 
   const handleComplete = async (taskId) => {
     try {
-      await axios.patch(`http://localhost:8000/api/assign/tasks/complete/${taskId}`, {}, {
+      await axios.patch(`/assign/tasks/complete/${taskId}`, {}, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       fetchManagerData();
@@ -90,7 +90,7 @@ const ManagerDashboard = () => {
 
   const handleReject = async (rejectionReason) => {
     try {
-      await axios.patch(`http://localhost:8000/api/assign/tasks/reject/${selectedTaskId}`, { reason: rejectionReason }, {
+      await axios.patch(`/assign/tasks/reject/${selectedTaskId}`, { reason: rejectionReason }, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       setShowRejectModal(false);

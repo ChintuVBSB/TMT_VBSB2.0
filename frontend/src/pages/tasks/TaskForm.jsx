@@ -20,6 +20,8 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
   const isSubmittingRef = useRef(false);
   const [recurring, setRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState("");
+  const [searchServiceType, setSearchServiceType] = useState("");
+  const [filteredServiceTypes, setFilteredServiceTypes] = useState(taskBucket);
   
   // State for form validation errors
   const [errors, setErrors] = useState({});
@@ -55,6 +57,18 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
     debounced();
     return () => debounced.cancel();
   }, [searchClient, clients]);
+
+  useEffect(() => {
+  const debounced = debounce(() => {
+    const list = taskBucket.filter((bucket) =>
+      bucket.title.toLowerCase().includes(searchServiceType.toLowerCase())
+    );
+    setFilteredServiceTypes(list);
+  }, 300);
+  debounced();
+  return () => debounced.cancel();
+}, [searchServiceType, taskBucket]);
+
 
   const handleUploadComplete = (selectedFiles) => {
     setFiles(selectedFiles);
@@ -316,21 +330,36 @@ const TaskForm = ({ users: initialUsers, taskBucket, clients }) => {
                       <ChevronDown className="w-4 h-4" />
                     </button>
                     {isServiceTypeOpen && (
-                      <ul className="absolute z-10 bg-white border mt-1 w-full rounded shadow-lg max-h-48 overflow-y-auto">
-                        {taskBucket.map((bucket) => (
-                          <li
-                            key={bucket._id}
-                            onMouseDown={() => {
-                              setServiceType(bucket.title);
-                              setIsServiceTypeOpen(false);
-                              if(errors.serviceType) setErrors(p => ({...p, serviceType: null}));
-                            }}
-                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                          >
-                            {bucket.title}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="absolute z-10 bg-white border mt-1 w-full rounded shadow-lg max-h-64 overflow-y-auto">
+                          {/* Search input for service type */}
+                          <input
+                            type="text"
+                            value={searchServiceType}
+                            onChange={e => setSearchServiceType(e.target.value)}
+                            placeholder="Search service type"
+                            className="w-full px-3 py-2 border-b border-gray-200"
+                            autoFocus
+                          />
+                          <ul>
+                            {filteredServiceTypes.map((bucket) => (
+                              <li
+                                key={bucket._id}
+                                onMouseDown={() => {
+                                  setServiceType(bucket.title);
+                                  setIsServiceTypeOpen(false);
+                                  setSearchServiceType("");
+                                  if(errors.serviceType) setErrors(p => ({...p, serviceType: null}));
+                                }}
+                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                              >
+                                {bucket.title}
+                              </li>
+                            ))}
+                            {filteredServiceTypes.length === 0 && (
+                              <li className="px-4 py-2 text-gray-400">No service type found</li>
+                            )}
+                          </ul>
+                        </div>
                     )}
                     {errors.serviceType && <p className="text-xs text-red-500 mt-1">{errors.serviceType}</p>}
                   </div>

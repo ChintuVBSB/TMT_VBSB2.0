@@ -59,7 +59,7 @@ function StaffDashboard() {
         params.completedAfter = start.toISOString();
       }
 
-      const res = await axios.get("http://localhost:8000/api/assign/tasks/my", {
+      const res = await axios.get("/assign/tasks/my", {
         headers: { Authorization: `Bearer ${getToken()}` },
         params
       });
@@ -119,7 +119,7 @@ function StaffDashboard() {
   const handleAccept = async (taskId) => {
     try {
       await axios.patch(
-        `http://localhost:8000/api/assign/tasks/accept/${taskId}`,
+        `/assign/tasks/accept/${taskId}`,
         {},
         {
           headers: { Authorization: `Bearer ${getToken()}` }
@@ -136,7 +136,7 @@ function StaffDashboard() {
   const handleReject = async (reason) => {
     try {
       await axios.patch(
-        `http://localhost:8000/api/assign/tasks/reject/${selectedTaskId}`,
+        `/assign/tasks/reject/${selectedTaskId}`,
         { reason },
         {
           headers: { Authorization: `Bearer ${getToken()}` }
@@ -154,7 +154,7 @@ function StaffDashboard() {
   const handleComplete = async (taskId) => {
     try {
       await axios.patch(
-        `http://localhost:8000/api/assign/tasks/complete/${taskId}`,
+        `/assign/tasks/complete/${taskId}`,
         {},
         {
           headers: { Authorization: `Bearer ${getToken()}` }
@@ -171,8 +171,8 @@ function StaffDashboard() {
   const handleRemarkSubmit = async () => {
     try {
       const endpoint = isRetryRequest
-        ? `http://localhost:8000/api/assign/tasks/retry-request/${remarkTaskId}`
-        : `http://localhost:8000/api/assign/tasks/remark/${remarkTaskId}`;
+        ? `/assign/tasks/retry-request/${remarkTaskId}`
+        : `/assign/tasks/remark/${remarkTaskId}`;
         
       await axios.post(
         endpoint,

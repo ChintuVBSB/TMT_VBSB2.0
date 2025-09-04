@@ -133,7 +133,7 @@ const AllTasks = () => {
   const sendReminder = async (taskId, staffId) => {
     try {
       await axios.post(
-        "http://localhost:8000/api/assign/tasks/reminder",
+        "/assign/tasks/reminder",
         { taskId, staffId },
         {
           headers: { Authorization: `Bearer ${getToken()}` }
@@ -194,7 +194,7 @@ const AllTasks = () => {
   const handleAcceptRetry = async (taskId, userId) => {
     try {
       const res = await axios.patch(
-        `http://localhost:8000/api/assign/tasks/accept-retry/${taskId}`,
+        `/assign/tasks/accept-retry/${taskId}`,
         { userId },
         {
           headers: {

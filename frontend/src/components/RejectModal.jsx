@@ -17,7 +17,7 @@ const RejectModal = ({ isOpen, onClose, onSubmit }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-[#000000b1] bg-opacity-40 flex justify-center items-center z-50">
+    <div className="fixed inset-0  bg-[#000000b1] bg-opacity-40 flex justify-center items-center">
       <div className="bg-white p-6 rounded-lg w-[90%] max-w-md shadow-lg">
         <h2 className="text-lg font-semibold text-gray-800 mb-3">Reason for Rejection</h2>
         <textarea

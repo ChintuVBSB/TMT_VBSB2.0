@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "../services/api";
 import { getToken } from "../utils/token";
 
 const NotificationDisplay = () => {
@@ -8,7 +8,7 @@ const NotificationDisplay = () => {
   const fetchNotifications = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:8000/api/notifications/my",
+        "/notifications/my",
         {
           headers: { Authorization: `Bearer ${getToken()}` }
         }
@@ -25,7 +25,7 @@ const NotificationDisplay = () => {
   const markAsRead = async (notificationId) => {
     try {
       await axios.post(
-        "http://localhost:8000/api/notifications/read",
+        "/notifications/read",
         { notificationId },
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );
@@ -52,11 +52,11 @@ const NotificationDisplay = () => {
         notifications.map((notif) => (
           <div
             key={notif._id}
-            className="flex flex-col gap-2 w-60 sm:w-72 text-[10px] sm:text-xs z-50"
+            className="flex flex-col gap-2 w-60 sm:w-72 text-[10px] sm:text-xs "
           >
             <div className="flex items-center justify-between w-full h-12 sm:h-14 rounded-lg bg-[#232531] px-[10px]">
               <div className="flex  gap-2 items-center">
-                <div className="text-[#2b9875]  bg-white/5 backdrop-blur-xl p-1 rounded-lg">
+                <div className="text-[#2b9875] z-0  bg-white/5 backdrop-blur-xl p-1 rounded-lg">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="24"

@@ -10,7 +10,7 @@ const StaffExport = ({ filters }) => {
     console.log("Filters being sent:", filters);
 
     try {
-      const res = await axios.get("http://localhost:8000/api/timelog/export-logs", {
+      const res = await axios.get("/timelog/export-logs", {
         params: {
           from: filters.fromDate,
           to: filters.toDate,
