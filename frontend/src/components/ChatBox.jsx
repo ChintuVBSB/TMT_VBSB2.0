@@ -11,8 +11,8 @@ const ChatBox = ({ projectId, user, onClose }) => {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    // 🔌 Establish socket connection once on mount
-    socket = io("http://localhost:8000");
+    // 🔌 Use env variable for Socket.IO URL
+    socket = io(import.meta.env.VITE_SOCKET_URL);
 
     socket.on("connect", () => {
       console.log("✅ Socket connected:", socket.id);
