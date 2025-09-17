@@ -105,6 +105,8 @@ function VerifyOTP() {
 
         <input
           type="text"
+          autocomplete="one-time-code" 
+          inputmode="numeric"
           placeholder="Enter 6-digit OTP"
           className="w-full px-4 py-3 bg-[#f5f1fa] rounded-lg outline-none text-center text-lg tracking-widest"
           maxLength={6}

@@ -41,6 +41,7 @@ import { useEffect } from "react";
 import StaffTasksReport from "./components/MyTaskReport";
 import CalendarView from "./components/CalendarView";
 import AdminCalander from "./pages/AdminCalander";
+import ViewLogs from "./pages/team/ViewLogs";
 
 
 const App = () => {
@@ -222,6 +223,15 @@ const App = () => {
             element={
               <ProtectedRoute allowedRoles={["staff"]}>
                 <MyProjects />
+              </ProtectedRoute>
+            }
+          />
+       
+          <Route
+          path="/staff/view-logs"
+           element={
+              <ProtectedRoute allowedRoles={["staff"]}>
+                <ViewLogs/>
               </ProtectedRoute>
             }
           />

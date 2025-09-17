@@ -43,14 +43,14 @@ const AllTasks = () => {
   const [showAssignedByDropdown, setShowAssignedByDropdown] = useState(false);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [dateFilter, setDateFilter] = useState(""); // "7days", "30days", or ""
-  const [taskId, setTaskId] = useState(null);
-  const [remark, setRemark] = useState("");
+  // const [taskId, setTaskId] = useState(null);
+  // const [remark, setRemark] = useState("");
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [selectedRemark, setSelectedRemark] = useState("");
   const [loading, setLoading] = useState(true);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [openSubtasks, setOpenSubtasks] = useState({}); // To track open subtask dropdowns
-  const [activeTab, setActiveTab] = useState("All");
+  // const [activeTab, setActiveTab] = useState("All");
 
   const debouncedSearch = useCallback(
     debounce((value) => {
@@ -221,8 +221,10 @@ const AllTasks = () => {
     return dateStr && new Date(dateStr).toISOString().split("T")[0] === today;
   };
 
+  // Fix: Correct isExpired logic (was always false due to invalid date)
   const isExpired = (task) => {
-    return new Date(task.due_date) < new Date(0,0,0,0) && task.status !== "Completed";
+    // If due_date is before now and not completed, it's expired
+    return new Date(task.due_date) < new Date() && task.status !== "Completed";
   };
 
   // Filter users for dropdowns
@@ -317,7 +319,7 @@ const AllTasks = () => {
               <button
                 key={status}
                 onClick={() => handleStatusChange(status)}
-                className={`px-4 py-2 rounded-full border ${filters.status.toLowerCase() === status.toLowerCase()? "bg-black text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                className={`px-4 py-2 rounded-full border ${filters.status.toLowerCase() === status.toLowerCase() ? "bg-black text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
               >
                 {status}
               </button>
@@ -646,7 +648,8 @@ const AllTasks = () => {
                         )
                       </div>
                       {/* Show remarks if task is due today or expired */}
-                      {isExpired(task) && task.remarks && (
+                      {/* Fix: Use correct property name 'remark' instead of 'remarks' */}
+                      {isExpired(task) && task.remark && (
                         <div className="mt-1 text-xs text-red-600 font-semibold">
                           Remarks: {task.remark}
                         </div>

@@ -7,10 +7,7 @@ import StaffNavbar from "../../components/navbars/StaffNavbar";
 import StaffReassignTaskModal from "../team/StaffReassignTaskModal";
 import { Repeat, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 
-import {
-  Kanban,
-  Paperclip
-} from "lucide-react";
+import { Kanban, Paperclip } from "lucide-react";
 import NotificationBell from "../tasks/NotificationBell";
 import BlurText from "./BlurText";
 import toast from "react-hot-toast";
@@ -19,11 +16,11 @@ import RewardCard from "../../components/RewardCard";
 import KanbanView from "../KanbanView";
 import CalendarView from "../../components/CalendarView";
 import socket from "../../socket";
-import PageSkelton from "../../components/skeletons/PageSkeleton"
+import PageSkelton from "../../components/skeletons/PageSkeleton";
 import StaffTimeLogFilter from "./StaffTimeLogFilter";
 import TaskCommentsModal from "../tasks/TaskCommentsModal";
 import NotificationDisplay from "../../components/NotificationDisplay";
-
+import MissedLogAlert from "../../components/MissedLogAlert";
 
 function StaffDashboard() {
   const [tasks, setTasks] = useState([]);
@@ -45,7 +42,7 @@ function StaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [openSubtasks, setOpenSubtasks] = useState({});
 
-     const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
   const fetchMyTasks = async () => {
@@ -63,15 +60,14 @@ function StaffDashboard() {
         headers: { Authorization: `Bearer ${getToken()}` },
         params
       });
-  console.log("tasks:", res.data.tasks);
-
+      console.log("tasks:", res.data.tasks);
 
       setTasks(res.data.tasks);
       setFilteredTasks(res.data.tasks);
     } catch (err) {
       console.error("Error fetching tasks", err);
       toast.error("Failed to fetch tasks.");
-    } finally { 
+    } finally {
       setLoading(false);
     }
   };
@@ -91,7 +87,6 @@ function StaffDashboard() {
     fetchMyTasks();
     fetchUser();
   }, [activeTab, filterMode]);
-
 
   useEffect(() => {
     socket.on("task:reminder", ({ message }) => {
@@ -173,14 +168,16 @@ function StaffDashboard() {
       const endpoint = isRetryRequest
         ? `/assign/tasks/retry-request/${remarkTaskId}`
         : `/assign/tasks/remark/${remarkTaskId}`;
-        
+
       await axios.post(
         endpoint,
         { remark: remarkText, delayReason },
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );
-      
-      toast.success(isRetryRequest ? "Retry request sent!" : "Remark submitted!");
+
+      toast.success(
+        isRetryRequest ? "Retry request sent!" : "Remark submitted!"
+      );
       setShowRemarkModal(false);
       setRemarkText("");
       setRemarkTaskId(null);
@@ -209,23 +206,28 @@ function StaffDashboard() {
     } catch (err) {
       toast.error("Failed to update subtask.");
       // Log the full error for better debugging
-      console.error("Error completing subtask: ", err.response ? err.response.data : err.message);
+      console.error(
+        "Error completing subtask: ",
+        err.response ? err.response.data : err.message
+      );
     }
   };
 
-const debouncedFilter = useMemo(
-  () =>
-    debounce((query) => {
-      const filtered = tasks.filter((task) =>
-        (task.title && task.title.toLowerCase().includes(query.toLowerCase())) ||
-        (task.taskId && task.taskId.toLowerCase().includes(query.toLowerCase()))
-      );
-      setFilteredTasks(filtered);
-    }, 300),
-  [tasks]
-);
+  const debouncedFilter = useMemo(
+    () =>
+      debounce((query) => {
+        const filtered = tasks.filter(
+          (task) =>
+            (task.title &&
+              task.title.toLowerCase().includes(query.toLowerCase())) ||
+            (task.taskId &&
+              task.taskId.toLowerCase().includes(query.toLowerCase()))
+        );
+        setFilteredTasks(filtered);
+      }, 300),
+    [tasks]
+  );
 
-  
   useEffect(() => {
     if (search.trim() === "") {
       setFilteredTasks(tasks);
@@ -234,22 +236,19 @@ const debouncedFilter = useMemo(
     }
   }, [search, tasks, debouncedFilter]);
 
-
-  
   const filteredByTab = useMemo(() => {
     return filteredTasks.filter((task) => {
-        if (activeTab === "To Do") return task.status === "Pending";
-        if (activeTab === "In Progress") return task.status === "In Progress";
-        if (activeTab === "Completed") return task.status === "Completed";
-        return true;
+      if (activeTab === "To Do") return task.status === "Pending";
+      if (activeTab === "In Progress") return task.status === "In Progress";
+      if (activeTab === "Completed") return task.status === "Completed";
+      return true;
     });
-}, [filteredTasks, activeTab]);
+  }, [filteredTasks, activeTab]);
 
   if (loading) return <PageSkelton count={6} />;
 
   return (
     <>
-
       {/* ✅ NEW: Render the comments modal */}
       {showCommentsModal && (
         <TaskCommentsModal
@@ -357,7 +356,8 @@ const debouncedFilter = useMemo(
           onChange={(e) => setSearch(e.target.value)}
         />
 
-          <NotificationDisplay/>
+        <NotificationDisplay />
+        <MissedLogAlert userId={user.id}/>
         <div className="flex flex-wrap mt-5 gap-4 sm:gap-8 mb-6 text-sm sm:text-base font-semibold text-gray-700 border-b border-gray-200">
           {["To Do", "In Progress", "Completed"].map((tab) => (
             <button
@@ -399,7 +399,14 @@ const debouncedFilter = useMemo(
             <table className="min-w-full divide-y text-sm divide-gray-200">
               <thead className="bg-gray-100 text-left">
                 <tr>
-                  {["Task ID", "Title & Subtasks", "Due Date", "Client", "Assigned By", "Actions"].map((heading) => (
+                  {[
+                    "Task ID",
+                    "Title & Subtasks",
+                    "Due Date",
+                    "Client",
+                    "Assigned By",
+                    "Actions"
+                  ].map((heading) => (
                     <th
                       key={heading}
                       className="px-4 py-3 text-sm font-medium text-gray-700 whitespace-nowrap"
@@ -412,7 +419,12 @@ const debouncedFilter = useMemo(
               <tbody className="bg-white divide-y divide-gray-100">
                 {filteredByTab.map((task) => {
                   const now = new Date();
-                  const isExpired = new Date(task.due_date) < now;
+
+                  // task ki due date ke din ka end time banao
+                  const dueDate = new Date(task.due_date);
+                  dueDate.setHours(23, 59, 59, 999);
+
+                  const isExpired = now > dueDate;
 
                   return (
                     <tr key={task._id} className="hover:bg-gray-50">
@@ -420,49 +432,81 @@ const debouncedFilter = useMemo(
                         {task.taskId || "---"}
                       </td>
                       <td className="px-4 py-4 capitalize align-top">
-                         <div className="font-medium text-gray-800">{task.title || "Untitled"}</div>
-                              {task.description && (
-                            <details className="mt-2 text-xs text-gray-500 cursor-pointer group">
-                                <summary className="outline-none select-none font-medium group-hover:underline">View Description</summary>
-                                <p className="mt-1 whitespace-pre-wrap border-l-2 border-gray-200 pl-2">
-                                    {task.description || "No Description"}
-                                </p>
-                            </details>
-                         )}
-                        
-                         {task.reassign_remark && (
-                              <div className="mt-2 bg-yellow-50 border-l-4 border-yellow-400 p-2 rounded text-xs text-gray-700">
-                                <strong>Note:</strong> {task.reassign_remark}
-                              </div>
-                          )}
-                        
+                        <div className="font-medium text-gray-800">
+                          {task.title || "Untitled"}
+                        </div>
+                        {task.description && (
+                          <details className="mt-2 text-xs text-gray-500 cursor-pointer group">
+                            <summary className="outline-none select-none font-medium group-hover:underline">
+                              View Description
+                            </summary>
+                            <p className="mt-1 whitespace-pre-wrap border-l-2 border-gray-200 pl-2">
+                              {task.description || "No Description"}
+                            </p>
+                          </details>
+                        )}
+
+                        {task.reassign_remark && (
+                          <div className="mt-2 bg-yellow-50 border-l-4 border-yellow-400 p-2 rounded text-xs text-gray-700">
+                            <strong>Note:</strong> {task.reassign_remark}
+                          </div>
+                        )}
+
                         {task.subtasks && task.subtasks.length > 0 && (
-                          <details className="mt-3 group" onToggle={(e) => setOpenSubtasks({...openSubtasks, [task._id]: e.currentTarget.open })}>
+                          <details
+                            className="mt-3 group"
+                            onToggle={(e) =>
+                              setOpenSubtasks({
+                                ...openSubtasks,
+                                [task._id]: e.currentTarget.open
+                              })
+                            }
+                          >
                             <summary className="cursor-pointer text-xs font-semibold text-blue-600 flex items-center gap-1">
-                             {openSubtasks[task._id] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                              View Subtasks ({task.subtasks.filter(st => st.status === 'Completed').length}/{task.subtasks.length})
+                              {openSubtasks[task._id] ? (
+                                <ChevronUp size={14} />
+                              ) : (
+                                <ChevronDown size={14} />
+                              )}
+                              View Subtasks (
+                              {
+                                task.subtasks.filter(
+                                  (st) => st.status === "Completed"
+                                ).length
+                              }
+                              /{task.subtasks.length})
                             </summary>
                             <ul className="mt-2 space-y-2 pl-4 border-l-2 border-gray-200">
-                              {task.subtasks.map((subtask, index) => ( // ✅ Passing index here
-                                <li key={subtask._id} className="flex items-center gap-2">
-                                  <input 
-                                    type="checkbox"
-                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    checked={subtask.status === 'Completed'}
-                                    // ✅ FIXED: Calling handleSubtaskComplete with taskId and index
-                                    onChange={() => handleSubtaskComplete(task._id, index)}
-                                    id={`subtask-${subtask._id}`}
-                                    // A subtask can only be marked complete if the main task is "In Progress"
-                                    disabled={task.status !== 'In Progress'}
-                                  />
-                                  <label 
-                                      htmlFor={`subtask-${subtask._id}`} 
-                                      className={`text-sm ${subtask.status === 'Completed' ? 'text-gray-400 line-through' : 'text-gray-700'} ${task.status !== 'In Progress' ? 'cursor-not-allowed' : ''}`}
-                                   >
+                              {task.subtasks.map(
+                                (
+                                  subtask,
+                                  index // ✅ Passing index here
+                                ) => (
+                                  <li
+                                    key={subtask._id}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                      checked={subtask.status === "Completed"}
+                                      // ✅ FIXED: Calling handleSubtaskComplete with taskId and index
+                                      onChange={() =>
+                                        handleSubtaskComplete(task._id, index)
+                                      }
+                                      id={`subtask-${subtask._id}`}
+                                      // A subtask can only be marked complete if the main task is "In Progress"
+                                      disabled={task.status !== "In Progress"}
+                                    />
+                                    <label
+                                      htmlFor={`subtask-${subtask._id}`}
+                                      className={`text-sm ${subtask.status === "Completed" ? "text-gray-400 line-through" : "text-gray-700"} ${task.status !== "In Progress" ? "cursor-not-allowed" : ""}`}
+                                    >
                                       {subtask.title}
-                                  </label>
-                                </li>
-                              ))}
+                                    </label>
+                                  </li>
+                                )
+                              )}
                             </ul>
                           </details>
                         )}
@@ -502,84 +546,85 @@ const debouncedFilter = useMemo(
                       </td>
                       <td className="px-4 py-4 align-top">
                         <div className="flex flex-col items-start gap-2">
-                            {task.status === "Pending" && !isExpired && (
-                                <div className="flex gap-2">
+                          {task.status === "Pending" && !isExpired && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleAccept(task._id)}
+                                className="bg-blue-600 text-white px-3 py-1 text-xs rounded hover:bg-blue-700"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedTaskId(task._id);
+                                  setShowRejectModal(true);
+                                }}
+                                className="bg-gray-500 text-white px-3 py-1 text-xs rounded hover:bg-gray-600"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+
+                          {task.status === "Pending" && isExpired && (
+                            <>
+                              {task.retryRequested ? (
+                                <span className="text-blue-600 text-xs font-medium px-3 py-1">
+                                  Retry Requested
+                                </span>
+                              ) : (
                                 <button
-                                    onClick={() => handleAccept(task._id)}
-                                    className="bg-blue-600 text-white px-3 py-1 text-xs rounded hover:bg-blue-700"
+                                  onClick={() => {
+                                    setRemarkTaskId(task._id);
+                                    setShowRemarkModal(true);
+                                    setIsRetryRequest(true);
+                                  }}
+                                  className="bg-purple-600 text-white px-3 py-1 text-xs rounded hover:bg-purple-700"
                                 >
-                                    Accept
+                                  Request Retry
                                 </button>
-                                <button
-                                    onClick={() => {
-                                    setSelectedTaskId(task._id);
-                                    setShowRejectModal(true);
-                                    }}
-                                    className="bg-gray-500 text-white px-3 py-1 text-xs rounded hover:bg-gray-600"
-                                >
-                                    Reject
-                                </button>
-                                </div>
-                            )}
-                               
-                            {task.status === "Pending" && isExpired && (
-                                <>
-                                {task.retryRequested ? (
-                                    <span className="text-blue-600 text-xs font-medium px-3 py-1">
-                                    Retry Requested
-                                    </span>
-                                ) : (
-                                    <button
-                                    onClick={() => {
-                                        setRemarkTaskId(task._id);
-                                        setShowRemarkModal(true);
-                                        setIsRetryRequest(true);
-                                    }}
-                                    className="bg-purple-600 text-white px-3 py-1 text-xs rounded hover:bg-purple-700"
-                                    >
-                                    Request Retry
-                                    </button>
-                                )}
-                                </>
-                            )}
-                            <div className="flex">
-                            {(task.status === "Pending" || task.status === "In Progress") && (
-                                 <button
-                                    onClick={() => {
-                                        setReassignModalTaskId(task._id);
-                                        setShowReassignModal(true);
-                                    }}
-                                    title="Reassign Task"
-                                    className="text-yellow-600 hover:text-yellow-800 p-1"
-                                >
-                                    <Repeat size={18} />
-                                </button>
+                              )}
+                            </>
+                          )}
+                          <div className="flex">
+                            {(task.status === "Pending" ||
+                              task.status === "In Progress") && (
+                              <button
+                                onClick={() => {
+                                  setReassignModalTaskId(task._id);
+                                  setShowReassignModal(true);
+                                }}
+                                title="Reassign Task"
+                                className="text-yellow-600 hover:text-yellow-800 p-1"
+                              >
+                                <Repeat size={18} />
+                              </button>
                             )}
 
                             {task.status === "In Progress" && (
-                                <button
+                              <button
                                 onClick={() => handleComplete(task._id)}
                                 className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700"
-                                >
+                              >
                                 Complete
-                                </button>
+                              </button>
                             )}
 
-                             {/* ✅ NEW: Comments button */}
+                            {/* ✅ NEW: Comments button */}
                             <button
-                                onClick={() => {
-                                  setSelectedTask(task);
-                                  setShowCommentsModal(true);
-                                }}
-                                title="View Comments"
-                                className="flex items-center gap-1.5 text-gray-600 hover:text-blue-600 p-1"
+                              onClick={() => {
+                                setSelectedTask(task);
+                                setShowCommentsModal(true);
+                              }}
+                              title="View Comments"
+                              className="flex items-center gap-1.5 text-gray-600 hover:text-blue-600 p-1"
                             >
-                                <MessageSquare size={18} />
-                                <span className="text-xs font-bold bg-gray-200 rounded-full px-1.5 py-0.5">
-                                    {task.comments?.length || 0}
-                                </span>
+                              <MessageSquare size={18} />
+                              <span className="text-xs font-bold bg-gray-200 rounded-full px-1.5 py-0.5">
+                                {task.comments?.length || 0}
+                              </span>
                             </button>
-                            </div>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -594,9 +639,11 @@ const debouncedFilter = useMemo(
           <div className="flex gap-4 mt-4 flex-wrap">
             <button
               className="bg-blue-600 text-white px-3 py-1 text-sm rounded flex items-center gap-2 hover:bg-blue-700"
-              onClick={() => setViewMode(viewMode === "kanban" ? "table" : "kanban")}
+              onClick={() =>
+                setViewMode(viewMode === "kanban" ? "table" : "kanban")
+              }
             >
-              <Kanban /> {viewMode === 'kanban' ? 'Table View' : 'Kanban View'}
+              <Kanban /> {viewMode === "kanban" ? "Table View" : "Kanban View"}
             </button>
           </div>
 
@@ -608,4 +655,4 @@ const debouncedFilter = useMemo(
   );
 }
 
-export default StaffDashboard; 
+export default StaffDashboard;

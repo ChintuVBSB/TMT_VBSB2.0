@@ -432,3 +432,35 @@ export const exportTimeLogsByUser = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+
+
+// Get logs by date for the logged-in user
+export const getLogsByDate = async (req, res) => {
+  try {
+    const { date } = req.params;
+    const userId = req.user.id;
+
+    console.log("🔎 Requested Date:", date);
+
+    // Convert to UTC explicitly
+    const startOfDay = new Date(`${date}T00:00:00.000Z`);
+    const endOfDay = new Date(`${date}T23:59:59.999Z`);
+
+    console.log("StartOfDay:", startOfDay.toISOString());
+    console.log("EndOfDay:", endOfDay.toISOString());
+
+    const logs = await TimeLog.find({
+      user: userId,
+      working_date: { $gte: startOfDay, $lte: endOfDay },
+    }).populate("client", "name");
+
+    console.log("Fetched Logs:", logs.length);
+    res.status(200).json(logs);
+  } catch (err) {
+    console.error("Error fetching logs by date:", err);
+    res.status(500).json({ message: "Failed to fetch logs" });
+  }
+};
+

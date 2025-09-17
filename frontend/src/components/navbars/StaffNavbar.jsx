@@ -42,6 +42,9 @@ const StaffNavbar = () => {
           <Link to="/staff/report" className="hover:underline transition">
             Reports
           </Link>
+           <Link to="/staff/view-logs" className="hover:underline transition">
+             View Logs
+          </Link>
         </nav>
 
         {/* User + Mobile Toggle */}

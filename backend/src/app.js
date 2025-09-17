@@ -18,6 +18,7 @@ import taskRoutes from "../src/routes/task.routes.js";  // ✅ Corrected path
 import helmet from "helmet"
 import compression from "compression"
 import NotificationRoutes from "../src/routes/Notification.routes.js"
+import crontRoutes from "./routes/missedLogRoutes.js"
 
 dotenv.config();
 
@@ -25,7 +26,7 @@ const app = express();
 
 
 app.use(cors({
-  origin: "*",
+  origin: "http://localhost:5173",
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
 }));
 
@@ -40,6 +41,7 @@ app.use(compression());  // 🚀 Speed
 
 
 // ✅ ALL ROUTES
+app.use("/api/missedLogs",crontRoutes)
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/user", UserRoutes);
